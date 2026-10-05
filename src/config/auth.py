@@ -1,6 +1,6 @@
 """Authentication tiers and token validation (voice auth model).
 
-Encodes the deterministic parts of the auth stories rules: ANI match to a single family, Level 1.5 step-up when PHI/PII
+Encodes the deterministic parts of the voice-auth requirements: ANI match to a single family, Level 1.5 step-up when PHI/PII
 is involved, primary-token collection (member ID or Rx number), DOB
 verification with bounded retries, privacy-flag transfer, and caller-type
 routing. The LLM never decides whether a caller is authenticated — these rules do.
