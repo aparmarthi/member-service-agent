@@ -49,3 +49,34 @@ def test_groundedness_suite_is_perfect():
 def test_conversation_suite_completes():
     metrics, failures = eval_conversations([])
     assert metrics["task_completion_rate"] == 1.0, failures
+
+
+def test_scenarios_include_test_credentials():
+    by_name = {s["name"]: s for s in client.get("/scenarios").json()}
+    assert by_name["family_plan"]["member_id"] and len(by_name["family_plan"]["patients"]) == 3
+
+
+def test_turn_exposes_offer_and_session_transcript():
+    sid = client.post("/sessions", json={}).json()["session_id"]
+    turn = client.post(f"/sessions/{sid}/messages", json={"text": "how much is wegovy"}).json()
+    assert turn["offer"] == "pa_cost" and turn["crisis"] is False
+    detail = client.get(f"/sessions/{sid}").json()
+    assert [t["user"] for t in detail["turns"]] == ["how much is wegovy"]
+
+
+def test_crisis_turn_is_flagged():
+    sid = client.post("/sessions", json={}).json()["session_id"]
+    turn = client.post(f"/sessions/{sid}/messages", json={"text": "I want to end my life"}).json()
+    assert turn["crisis"] is True and "988" in turn["reply"]
+
+
+def test_evals_endpoints_serve_saved_runs():
+    runs = client.get("/evals").json()
+    assert runs and "failures" not in runs[0]
+    assert "failures" in client.get("/evals/latest").json()
+
+
+def test_cors_allows_browser_frontend():
+    r = client.options("/sessions", headers={"Origin": "http://localhost:3000",
+                                             "Access-Control-Request-Method": "POST"})
+    assert r.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")

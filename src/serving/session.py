@@ -65,6 +65,7 @@ class AgentSession:
         self.channel = channel
         self.verified = verified
         self.thread_id = uuid4().hex
+        self.turns: list[tuple[str, AgentTurnResult]] = []
         self._graph = (build_graph(provider, checkpointer=_saver())
                        if provider else default_graph())
 
@@ -93,11 +94,15 @@ class AgentSession:
             size = for_channel(self.channel).page_size
             start = (result.get("page", 1) - 1) * size
             shown = result["resolved"][start:start + size]
-        return AgentTurnResult(
+        turn = AgentTurnResult(
             reply=result["messages"][-1].content,
             intent=intent,
             escalated=bool(result.get("escalated")),
             handoff_target=result.get("handoff_target"),
             shown=shown,
             has_more=bool(result.get("has_more")) and intent is Intent.ORDER_STATUS,
+            crisis=bool(result.get("crisis")),
+            offer=result.get("offer"),
         )
+        self.turns.append((text, turn))
+        return turn

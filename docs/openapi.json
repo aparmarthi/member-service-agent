@@ -1,0 +1,729 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PBM Member Agent",
+    "version": "0.3.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "description": "Liveness check.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scenarios": {
+      "get": {
+        "summary": "Scenarios",
+        "description": "List synthetic member scenarios, with test credentials for step-up auth.",
+        "operationId": "scenarios_scenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScenarioInfo"
+                  },
+                  "type": "array",
+                  "title": "Response Scenarios Scenarios Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "summary": "Create Session",
+        "description": "Start a conversation for a synthetic member.",
+        "operationId": "create_session_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}": {
+      "get": {
+        "summary": "Get Session",
+        "description": "Return a conversation's config and full transcript.",
+        "operationId": "get_session_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/messages": {
+      "post": {
+        "summary": "Send Message",
+        "description": "Send one member turn and return the agent's reply and decisions.",
+        "operationId": "send_message_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTurnResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evals": {
+      "get": {
+        "summary": "Evals",
+        "description": "List saved eval runs, newest first, without per-case failures.",
+        "operationId": "evals_evals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvalSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Evals Evals Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evals/latest": {
+      "get": {
+        "summary": "Latest Eval",
+        "description": "Return the most recent eval run, including failing cases.",
+        "operationId": "latest_eval_evals_latest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRun"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentTurnResult": {
+        "properties": {
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/Intent"
+          },
+          "escalated": {
+            "type": "boolean",
+            "title": "Escalated",
+            "default": false
+          },
+          "handoff_target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Target"
+          },
+          "shown": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedStatus"
+            },
+            "type": "array",
+            "title": "Shown"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          },
+          "crisis": {
+            "type": "boolean",
+            "title": "Crisis",
+            "description": "Crisis language detected; reply includes 988.",
+            "default": false
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer",
+            "description": "Yes/no follow-up the agent just offered (e.g. more_orders, pa_cost); a UI can render quick replies for it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply",
+          "intent"
+        ],
+        "title": "AgentTurnResult",
+        "description": "Structured output of one agent turn (the reply plus turn state)."
+      },
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "chat",
+          "voice"
+        ],
+        "title": "Channel",
+        "description": "Delivery channel. Drives lookback, pagination, and action behavior."
+      },
+      "EvalRun": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Thresholds"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Failures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "provider",
+          "passed",
+          "metrics",
+          "thresholds",
+          "failures"
+        ],
+        "title": "EvalRun",
+        "description": "One saved eval run including its failing cases."
+      },
+      "EvalSummary": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Thresholds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "provider",
+          "passed",
+          "metrics",
+          "thresholds"
+        ],
+        "title": "EvalSummary",
+        "description": "One saved eval run."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "provider"
+        ],
+        "title": "HealthResponse",
+        "description": "Liveness payload."
+      },
+      "Intent": {
+        "type": "string",
+        "enum": [
+          "order_status",
+          "order_action",
+          "refill",
+          "drug_price",
+          "escalation",
+          "closing",
+          "off_topic"
+        ],
+        "title": "Intent",
+        "description": "Top-level routing intents, mirroring Agentforce topics."
+      },
+      "MessageIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MessageIn",
+        "description": "One member utterance."
+      },
+      "ResolvedStatus": {
+        "properties": {
+          "patient_name": {
+            "type": "string",
+            "title": "Patient Name"
+          },
+          "drug_name": {
+            "type": "string",
+            "title": "Drug Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "sub_status": {
+            "type": "string",
+            "title": "Sub Status"
+          },
+          "parent_status": {
+            "type": "string",
+            "title": "Parent Status"
+          },
+          "order_number": {
+            "type": "string",
+            "title": "Order Number"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "self_serve": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Self Serve"
+          },
+          "primary_cta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Cta"
+          },
+          "escalate": {
+            "type": "boolean",
+            "title": "Escalate",
+            "default": false
+          },
+          "go_to_refill": {
+            "type": "boolean",
+            "title": "Go To Refill",
+            "default": false
+          },
+          "tracking_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Id"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "patient_name",
+          "drug_name",
+          "status",
+          "sub_status",
+          "parent_status",
+          "order_number",
+          "priority"
+        ],
+        "title": "ResolvedStatus",
+        "description": "A prescription's status after deterministic reason-code resolution."
+      },
+      "ScenarioInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "patients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Patients"
+          },
+          "member_id": {
+            "type": "string",
+            "title": "Member Id",
+            "description": "Synthetic test credential for unverified sessions."
+          },
+          "dob": {
+            "type": "string",
+            "title": "Dob",
+            "description": "Synthetic test credential (account holder's DOB)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "summary",
+          "patients",
+          "member_id",
+          "dob"
+        ],
+        "title": "ScenarioInfo",
+        "description": "A synthetic member a session can load."
+      },
+      "SessionCreate": {
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "title": "Scenario",
+            "default": "single_patient_mixed_statuses"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel",
+            "default": "chat"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "False exercises step-up auth.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "SessionCreate",
+        "description": "Request to start a conversation."
+      },
+      "SessionCreated": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "scenario",
+          "channel",
+          "verified"
+        ],
+        "title": "SessionCreated",
+        "description": "A started conversation."
+      },
+      "SessionDetail": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/Turn"
+            },
+            "type": "array",
+            "title": "Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "scenario",
+          "channel",
+          "verified",
+          "turns"
+        ],
+        "title": "SessionDetail",
+        "description": "A conversation's config and transcript (for rehydrating a UI)."
+      },
+      "Turn": {
+        "properties": {
+          "user": {
+            "type": "string",
+            "title": "User"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AgentTurnResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "result"
+        ],
+        "title": "Turn",
+        "description": "One member message and the agent's structured response."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -70,6 +70,8 @@ pytest -q
 python -m evals.run
 ```
 
+Frontend: the API is the contract (`/openapi.json`, also exported to [docs/openapi.json](docs/openapi.json)), and CORS is on (`CORS_ORIGINS`, default `*` because all data is synthetic). [docs/BOLT_PROMPT.md](docs/BOLT_PROMPT.md) specs a Next.js console and eval dashboard against it, with a mock mode for builders that can't reach the API.
+
 API sketch:
 
 ```bash

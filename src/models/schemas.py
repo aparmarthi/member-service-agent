@@ -133,3 +133,8 @@ class AgentTurnResult(BaseModel):
     handoff_target: str | None = None
     shown: list[ResolvedStatus] = Field(default_factory=list)
     has_more: bool = False
+    crisis: bool = Field(default=False, description="Crisis language detected; reply includes 988.")
+    offer: str | None = Field(
+        default=None,
+        description="Yes/no follow-up the agent just offered (e.g. more_orders, pa_cost); "
+                    "a UI can render quick replies for it.")

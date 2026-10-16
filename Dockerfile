@@ -7,6 +7,7 @@ COPY requirements-serve.txt .
 RUN pip install --no-cache-dir -r requirements-serve.txt
 
 COPY src/ src/
+COPY evals/results/ evals/results/
 
 EXPOSE 8000
 HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
