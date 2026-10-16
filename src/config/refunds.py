@@ -26,8 +26,8 @@ AUTO_APPROVE_LIMIT = 50.00
 LOST_OR_DAMAGED = re.compile(
     r"\b(lost|damaged|broken|stolen|missing|never (arrived|came|got here))\b", re.I)
 
-_APPROVE = re.compile(r"^\s*(approved?|yes|ok(ay)?|lgtm)\b", re.I)
-_DENY = re.compile(r"^\s*(den(y|ied)|reject(ed)?|no)\b", re.I)
+_APPROVE = re.compile(r"^\s*(approved?|yes|ok(ay)?|lgtm|looks good|go ahead)\b", re.I)
+_DENY = re.compile(r"^\s*(not approved|den(y|ied)|declined?|reject(ed)?|no)\b", re.I)
 
 
 def find_refunds(member: Member, exclude: set[str] | frozenset[str] = frozenset()) -> list[RefundLine]:

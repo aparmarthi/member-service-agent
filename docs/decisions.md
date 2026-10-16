@@ -165,7 +165,7 @@ for delivery.
 - The LLM only recognizes that the member is asking for a refund.
 - The member's "yes" processes refunds up to `AUTO_APPROVE_LIMIT` ($50) at once.
 - Above the limit, the refund waits as `pending_approval`. A specialist decides with `POST /sessions/{id}/approval` and plain text: "approved", "denied - already reversed".
-  - A regex reads the decision. There is no JSON payload and no LLM.
+  - A regex reads the decision. There is no JSON payload and no LLM. It accepts approved, approve, ok, yes, lgtm, looks good and go ahead; and denied, deny, declined, rejected, not approved and no. Anything else is a 422 that asks for "approved" or "denied".
   - The agent then tells the member the outcome.
 - Lost or damaged shipments go to a Member Support Specialist and aren't computed.
 
@@ -175,7 +175,9 @@ for delivery.
 - A threshold keeps the common case (small copay errors) self-service and puts human review where the dollars are.
 - Lost and damaged claims need judgment the order data can't supply: reship or refund, fraud signals, controlled-drug rules.
 
-**Guardrail:** the approval path writes to the thread directly (`graph.update_state(..., as_node="refund")`) and never goes through the router. A member typing "approved" in chat lands in the router like any other message and cannot approve anything. Tests cover this. The approver's note is stored with the refund for audit but never shown to the member. Approver turns are prefixed `[approver] ` in the transcript and turn log.
+**Guardrail:** the approval path writes to the thread directly (`graph.update_state(..., as_node="refund")`) and never goes through the router. A member typing "approved" in chat lands in the router like any other message and cannot approve anything. While a refund is pending it gets the "with a specialist" status reply, so a presenter who types in the wrong box doesn't get a misleading "You're all set". Tests cover this.
+
+**Member consent:** the member's acceptance of the offer also takes plain phrasing ("approved", "do it", "sounds good", "process it"), not just "yes". That's safe because consent only accepts the computed offer, and the $50 threshold still decides whether a specialist must approve. The approver's note is stored with the refund for audit but never shown to the member. Approver turns are prefixed `[approver] ` in the transcript and turn log.
 
 **Not LangGraph `interrupt()`:** an interrupt suspends the member's thread until someone resumes it with `Command(resume=...)`. The member couldn't keep talking while a refund waits, and resuming means passing a structured payload, which is the original pain point. A status field in state lets the conversation continue and lets any channel (the console now, a queue later) decide.
 

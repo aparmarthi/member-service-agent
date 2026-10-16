@@ -59,7 +59,10 @@ _OFFER_INTENTS = {
     "refund": Intent.REFUND,
 }
 _PAGED_OFFERS = {"more_orders", "more_refills"}
-_YES = re.compile(r"^(yes|yeah|yep|yup|sure|ok|okay|please|go ahead)\b")
+# Includes what a demo presenter types to "Want me to process it?". Accepting an
+# offer never bypasses a rule: the refund threshold still decides (ADR-014).
+_YES = re.compile(r"^(yes|yeah|yep|yup|sure|ok|okay|please|go ahead|do it|sounds good|"
+                  r"that works|approved?|process)\b")
 _NO = re.compile(r"^(no|nope|nah|not now)\b")
 _MORE = ("more", "the rest", "the other", "next")
 
@@ -125,6 +128,12 @@ def route(state: AgentState, provider: LLMProvider) -> AgentState:
             page = state.get("page", 1) + 1 if offer in _PAGED_OFFERS else 1
             return {"offer": None, "page": page, "intent": _OFFER_INTENTS[offer],
                     "followup": offer}
+
+    # "approved" typed in the member chat while a refund waits gets its status.
+    # Only the approval endpoint can approve (ADR-014).
+    refund = state.get("refund")
+    if refund and refund.status == "pending_approval" and re.match(r"^approved?\b", text):
+        return {**update, "intent": Intent.REFUND}
 
     intent, crisis = _classify(state.get("user_input", ""), provider)
     # The LLM is a second crisis detector: it can raise a crisis, never clear one.
