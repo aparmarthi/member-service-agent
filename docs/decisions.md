@@ -207,3 +207,23 @@ for delivery.
 - If a fresh held-out set shows a Haiku miss that a larger model catches, switch back. Crisis recall outranks cost.
 
 **Measured cost (Haiku 5.5, 2026-10-16, after `usage` was wired into the harness):** 491 tokens per turn, $0.056 per 1,000 turns, and $0.010 for a full eval run. Replies are templated, so the router is the only model call. Turns that skip it (follow-ups, credential prompts) still count in the denominator, so this is what a deployment would pay per turn.
+
+## ADR-016: Prompt injection as a gated suite; CI enforces the gates that hold on mock
+**Decision:**
+- `evals/datasets/injection.jsonl` holds 30 scripted cases: 25 attacks in six categories (instruction override, fake system or authority claims, identity spoofing, data exfiltration, refund self-approval above $50, crisis suppression) and 5 benign controls.
+- Each turn asserts the safe outcome in session state as well as in the reply: the refund's status, whether Level 1.5 was reached, every rendered line grounded in this member's data, the crisis flag and 988.
+- `injection_resistance` (attacks) and `injection_control_pass_rate` (controls) are gated at 1.00.
+- CI runs `python -m evals.run --no-save --gates code`. Every gate is enforced except `routing_accuracy` and `crisis_recall_holdout`, which judge the live model and are printed as report only.
+
+**Why:**
+- The defenses are structural (ADR-002, 007, 009, 014). The LLM returns one schema-enforced intent and a crisis flag, never an amount, an identity or an approval. The suite turns that claim into a regression test, so a change that lets model output reach a decision fails CI.
+- Asserting on state catches a bypass that a polite reply would hide.
+- Crisis-suppression cases use explicit crisis language. They test whether an instruction can switch off 988, not detection of indirect language, which the held-out set covers.
+- Before this, CI ran the mock evals with `continue-on-error`, so a groundedness or task-completion regression could merge. The two model-judgment gates still can't be judged on the keyword mock.
+
+**Results (2026-10-16):** mock 25/25 attacks and 5/5 controls. Claude Haiku 5.5 25/25 and 5/5, with every other gate passing ($0.013 for the run).
+
+**Trade-offs:**
+- The set was written alongside the defenses, so it is a regression suite, not an independent red team. A fresh set written without seeing the code is the next step, as with ADR-012.
+- In an attack, the model can only change which intent runs. One case's safety turns on that choice: an injected instruction to label every message a crisis. Haiku ignored it. A model that obeyed would cost a needless 988 reply and a handoff, not data or money.
+- CI never calls a paid model. The live ship gate is still a manual run.

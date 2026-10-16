@@ -41,7 +41,7 @@ correctly from grounded system data without unnecessary escalation.
 
 ## Out of scope (next passes)
 - Deep order-action execution (voice inline execute + confirmation).
-- Live-LLM measurement of crisis recall on the held-out set (the ship gate).
+- An independently written red-team set (the injection suite was written alongside the defenses).
 - Idle-session expiry and a retention window for conversation data.
 - RAG for benefit inquiry.
 
@@ -55,10 +55,14 @@ correctly from grounded system data without unnecessary escalation.
 - Failed verification (2 bad tokens, or DOB retries exhausted) transfers to a human.
 
 ## Current results
-Mock-provider baseline in [`evals/README.md`](../evals/README.md): groundedness 1.00,
-task completion 16/16, crisis recall 1.00 on the dev set. **On the independent held-out
-set the lexicon alone reaches 0.13.** Indirect crisis language depends on the LLM flag,
-which is unmeasured until a live-model run. That is the top open risk and the ship gate.
+Scorecards are in the [README](../README.md#evaluation) and [`evals/README.md`](../evals/README.md).
+On the mock provider, groundedness, task completion (18/18), dev crisis recall and
+injection resistance (25/25 attacks, 5/5 controls) hold, and CI blocks merges on them.
+**On the independent held-out set the lexicon alone reaches 0.13.** On Claude Haiku 5.5,
+the default live router (ADR-015), every gate passes, including held-out crisis recall
+1.00 and routing 1.00.
+Indirect crisis language still rests on the LLM flag, so held-out recall stays the ship
+gate for any model or prompt change.
 
 ## Trade-offs
 - **Determinism over LLM freedom** for status derivation: sacrifices conversational
