@@ -42,6 +42,8 @@ class Order(BaseModel):
     prescriptions: list[Prescription] = Field(default_factory=list)
     tracking_id: str | None = None
     shipment_address: str | None = None
+    charges: list[float] = Field(
+        default_factory=list, description="Payment captures on this order (refund grounding).")
 
 
 class Patient(BaseModel):
@@ -74,6 +76,7 @@ class Intent(str, Enum):
     REFILL = "refill"
     DRUG_PRICE = "drug_price"
     ESCALATION = "escalation"
+    REFUND = "refund"
     CLOSING = "closing"
     OFF_TOPIC = "off_topic"
 
@@ -124,6 +127,26 @@ class PriceQuote(BaseModel):
     disambiguation_options: list[str] = Field(default_factory=list)
 
 
+class RefundLine(BaseModel):
+    """One refundable charge, computed from order data (never from the LLM)."""
+
+    order_number: str
+    patient_name: str
+    drug_name: str
+    reason: Literal["cancelled", "duplicate", "overcharge"]
+    amount: float
+
+
+class RefundRequest(BaseModel):
+    """A refund the agent offered, processed, or sent for approval."""
+
+    reference: str
+    lines: list[RefundLine]
+    total: float
+    status: Literal["offered", "approved", "pending_approval", "denied"]
+    note: str | None = Field(default=None, description="Approver's note, if any.")
+
+
 class AgentTurnResult(BaseModel):
     """Structured output of one agent turn (the reply plus turn state)."""
 
@@ -138,3 +161,5 @@ class AgentTurnResult(BaseModel):
         default=None,
         description="Yes/no follow-up the agent just offered (e.g. more_orders, pa_cost); "
                     "a UI can render quick replies for it.")
+    refund: RefundRequest | None = Field(
+        default=None, description="The refund this turn offered or updated.")

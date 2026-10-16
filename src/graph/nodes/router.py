@@ -24,10 +24,12 @@ _ROUTER_SYSTEM = (
     "You are the intent router for a pharmacy benefits member-service agent. "
     "Classify the member's message into exactly one intent and reply with a JSON "
     "object {\"intent\": \"...\", \"crisis\": true|false}. Valid intents: order_status, order_action, "
-    "refill, drug_price, escalation, closing, off_topic. Route to escalation for "
+    "refill, drug_price, refund, escalation, closing, off_topic. Route to escalation for "
     "any request for a human/agent/representative or any expression of high "
     "frustration. Route order_status for questions about where an order/"
-    "prescription is or its delivery. Set crisis to true if the message expresses, "
+    "prescription is or its delivery. Route refund for requests to get money back, "
+    "being charged twice or more than expected, or being charged for a cancelled "
+    "order; a lost or damaged delivery is also refund. Set crisis to true if the message expresses, "
     "even indirectly, a wish to die, suicidal thoughts, self-harm, a plan to "
     "overdose, or hopelessness about living; idioms like 'this price is killing "
     "me' are not a crisis. Return only the JSON object."
@@ -53,6 +55,7 @@ _OFFER_INTENTS = {
     "check_refill": Intent.REFILL,
     "pa_cost": Intent.DRUG_PRICE,
     "add_to_cart": Intent.ORDER_ACTION,
+    "refund": Intent.REFUND,
 }
 _PAGED_OFFERS = {"more_orders", "more_refills"}
 _YES = re.compile(r"^(yes|yeah|yep|yup|sure|ok|okay|please|go ahead)\b")
@@ -157,6 +160,7 @@ def route_selector(state: AgentState) -> str:
         Intent.ORDER_ACTION: "order_action",
         Intent.REFILL: "refill",
         Intent.DRUG_PRICE: "drug_price",
+        Intent.REFUND: "refund",
         Intent.ESCALATION: "escalation",
         Intent.CLOSING: "closing",
         Intent.OFF_TOPIC: "off_topic",

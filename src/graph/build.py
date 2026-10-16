@@ -23,6 +23,7 @@ from src.graph.nodes import auth_gate as auth_node
 from src.graph.nodes import drug_price as price_node
 from src.graph.nodes import order_status as os_node
 from src.graph.nodes import refill as refill_node
+from src.graph.nodes import refund as refund_node
 from src.graph.nodes import router as router_node
 from src.graph.nodes import stubs
 from src.graph.state import AgentState
@@ -34,6 +35,7 @@ _INTENT_NODES = {
     "order_action": "order_action",
     "refill": "refill",
     "drug_price": "drug_price",
+    "refund": "refund",
     "escalation": "escalation",
     "closing": "closing",
     "off_topic": "off_topic",
@@ -65,6 +67,7 @@ def build_graph(
     g.add_node("order_action", stubs.order_action)
     g.add_node("refill", refill_node.refill)
     g.add_node("drug_price", price_node.drug_price)
+    g.add_node("refund", refund_node.refund)
     g.add_node("escalation", stubs.escalation)
     g.add_node("closing", stubs.closing)
     g.add_node("off_topic", stubs.off_topic)

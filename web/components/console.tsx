@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import type { AgentTurnResult, Channel, ScenarioInfo, SessionCreate } from "@/lib/types";
+import type { AgentTurnResult, Channel, RefundRequest, ScenarioInfo, SessionCreate } from "@/lib/types";
 import Inspector, { type InspectedTurn } from "./inspector";
 import Message, { type ChatMessage } from "./message";
 import { Badge, Button, Card, SectionLabel, Segmented, Switch } from "./ui";
@@ -15,6 +15,7 @@ const QUICK_REPLIES: Record<string, string[]> = {
   check_refill: ["Yes", "No"],
   add_to_cart: ["Yes", "No"],
   pa_cost: ["Yes, what's the cost?", "No thanks"],
+  refund: ["Yes, process it", "No thanks"],
 };
 
 export default function Console() {
@@ -84,6 +85,24 @@ export default function Console() {
     }
   }
 
+  async function approve(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || !sessionId || sending) return;
+    setSending(true);
+    try {
+      const result = await api.approve(sessionId, trimmed);
+      setMessages((m) => [...m, { role: "system", text: `Specialist: “${trimmed}”` }]);
+      onResult(`[approver] ${trimmed}`, result);
+      setError(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 422) setError("Approver reply must start with “approved” or “denied”.");
+      else if (e instanceof ApiError && e.status === 409) setError("No refund is waiting for approval.");
+      else setError(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setSending(false);
+    }
+  }
+
   function onResult(user: string, result: AgentTurnResult) {
     const added: ChatMessage[] = [{ role: "agent", result }];
     if (result.escalated && result.handoff_target === "live_agent") {
@@ -102,6 +121,8 @@ export default function Console() {
   const pendingAuth = last?.handoff_target === "pending_auth";
   const chips = last?.offer && !escalated ? QUICK_REPLIES[last.offer] ?? [] : [];
   const scenario = scenarios.find((s) => s.name === config?.scenario);
+  // Latest refund on the thread; later non-refund turns don't carry it.
+  const refund = turns.findLast((t) => t.result.refund)?.result.refund;
   const blocked = !sessionId || escalated || expired;
 
   return (
@@ -144,6 +165,7 @@ export default function Console() {
           </Button>
         </Card>
         {config && !config.verified && scenario && <Credentials scenario={scenario} onCopy={setToast} />}
+        {refund?.status === "pending_approval" && <Approval refund={refund} busy={sending} onDecide={approve} />}
       </aside>
 
       <Card className="flex min-h-[70vh] flex-col p-0">
@@ -161,7 +183,7 @@ export default function Console() {
         )}
         <div ref={logRef} role="log" aria-live="polite" className="flex-1 space-y-3 overflow-y-auto p-4">
           {messages.length === 0 && !error && (
-            <p className="text-center text-sm text-slate-400">Try “where is my order?”, “refill my meds”, or “how much is atorvastatin?”</p>
+            <p className="text-center text-sm text-slate-400">Try “where is my order?”, “refill my meds”, “how much is atorvastatin?”, or “I want a refund”</p>
           )}
           {messages.map((m, i) => <Message key={i} message={m} onCta={(cta) => setToast(`Deep link (stubbed): ${cta}`)} />)}
           {sending && <Typing />}
@@ -236,6 +258,38 @@ function Credentials({ scenario, onCopy }: { scenario: ScenarioInfo; onCopy: (ms
           </div>
         ))}
       </dl>
+    </Card>
+  );
+}
+
+function Approval({ refund, busy, onDecide }: {
+  refund: RefundRequest; busy: boolean; onDecide: (text: string) => void;
+}) {
+  const [text, setText] = useState("");
+  return (
+    <Card className="space-y-3 border-amber-300 dark:border-amber-800">
+      <div>
+        <SectionLabel>Specialist approval</SectionLabel>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Staff view. ${refund.total.toFixed(2)} · <span className="font-mono">{refund.reference}</span> is over
+          the auto-approve limit. Type a decision in plain text; the agent tells the member.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button className="flex-1" disabled={busy} onClick={() => onDecide("approved")}>Approve</Button>
+        <Button variant="outline" className="flex-1" disabled={busy} onClick={() => onDecide("denied")}>Deny</Button>
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); onDecide(text); setText(""); }} className="flex gap-2">
+        <input
+          aria-label="Approver decision"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={200}
+          placeholder="approved — verified against claim"
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
+        />
+        <Button type="submit" variant="outline" disabled={busy || !text.trim()}>Send</Button>
+      </form>
     </Card>
   );
 }

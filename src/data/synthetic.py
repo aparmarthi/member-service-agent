@@ -182,6 +182,38 @@ def older_orders_only(seed: int = 8) -> Member:
     return Member(member_id=_fake_id(rng, 11), internal_id=p.internal_id, patients=[p])
 
 
+def _charged_order(rng: random.Random, status_code: str, drug: str, price: float,
+                   charges: list[float], age_days: int = 5) -> Order:
+    """An order with explicit plan price and payment captures (refund fixtures)."""
+    rx = _make_rx(rng, status_code, drug=drug, condition_code="0")
+    rx.price = price
+    return Order(order_number=_fake_id(rng, 10), order_date=_days_ago(age_days),
+                 prescriptions=[rx], charges=charges)
+
+
+def refund_small(seed: int = 9) -> Member:
+    """Member charged for a cancelled order and charged twice for another ($31.15, auto-approves)."""
+    rng = _rng(seed)
+    orders = [
+        _charged_order(rng, "ORDER_CANCELED", "PEPCID 20MG TAB", 12.40, [12.40]),
+        _charged_order(rng, "DELIVERED_CONFIRMED", "LISINOPRIL 10MG TAB", 18.75, [18.75, 18.75]),
+    ]
+    p = Patient(internal_id=_fake_id(rng), first_name=rng.choice(_FIRST_NAMES),
+                last_name=rng.choice(_LAST_NAMES), dob="1988-01-01",
+                relationship="self", orders=orders)
+    return Member(member_id=_fake_id(rng, 11), internal_id=p.internal_id, patients=[p])
+
+
+def refund_large(seed: int = 10) -> Member:
+    """Member overcharged $87.60 on a copay (above the auto-approve limit, needs a specialist)."""
+    rng = _rng(seed)
+    orders = [_charged_order(rng, "DELIVERED_CONFIRMED", "JANUVIA 50MG TAB", 45.00, [132.60])]
+    p = Patient(internal_id=_fake_id(rng), first_name=rng.choice(_FIRST_NAMES),
+                last_name=rng.choice(_LAST_NAMES), dob="1988-01-01",
+                relationship="self", orders=orders)
+    return Member(member_id=_fake_id(rng, 11), internal_id=p.internal_id, patients=[p])
+
+
 SCENARIOS = {
     "single_patient_mixed_statuses": single_patient_mixed_statuses,
     "family_plan": family_plan,
@@ -191,6 +223,8 @@ SCENARIOS = {
     "refill_mixed_conditions": refill_mixed_conditions,
     "refill_transfer_only": refill_transfer_only,
     "older_orders_only": older_orders_only,
+    "refund_small": refund_small,
+    "refund_large": refund_large,
 }
 
 

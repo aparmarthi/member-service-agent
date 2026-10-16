@@ -19,18 +19,24 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from src.config.channels import for_channel
+from src.config.refunds import parse_decision
 from src.data import synthetic
 from src.graph.build import build_graph
+from src.graph.nodes import refund as refund_node
 from src.models.schemas import AgentTurnResult, Channel, Intent
 from src.serving import store
 from src.utils.llm import LLMProvider
 
+# Marks approver decisions in the transcript and turn log, so they are never
+# mistaken for something the member typed.
+APPROVER_PREFIX = "[approver] "
 
 # Domain types the checkpointer may rebuild from saved state. LangGraph is moving
 # to block unregistered types on deserialization, so the allowlist is explicit.
 _CHECKPOINT_TYPES = [
     ("src.models.schemas", name)
-    for name in ("Channel", "Intent", "Member", "ResolvedStatus", "RefillCandidate", "PriceQuote")
+    for name in ("Channel", "Intent", "Member", "ResolvedStatus", "RefillCandidate", "PriceQuote",
+                 "RefundLine", "RefundRequest")
 ] + [("src.config.auth", name) for name in ("AuthState", "AuthLevel", "CallerType")]
 
 
@@ -108,6 +114,36 @@ class AgentSession:
             has_more=bool(result.get("has_more")) and intent is Intent.ORDER_STATUS,
             crisis=bool(result.get("crisis")),
             offer=result.get("offer"),
+            refund=result.get("refund") if intent is Intent.REFUND else None,
         )
         self.turns.append((text, turn))
+        return turn
+
+    def review_refund(self, text: str) -> AgentTurnResult:
+        """Apply a specialist's plain-text decision ("approved", "denied - reason").
+
+        This writes to the thread directly instead of running the graph: the
+        decision comes from staff, not the member, so it must never pass
+        through the router, where a member's "approved" would land.
+
+        Args:
+            text: The approver's message.
+
+        Returns:
+            The member-facing update, as a turn.
+
+        Raises:
+            ValueError: If the text is neither an approval nor a denial.
+            LookupError: If no refund on this session is awaiting approval.
+        """
+        approved, note = parse_decision(text)
+        config = {"configurable": {"thread_id": self.thread_id}}
+        pending = self._graph.get_state(config).values.get("refund")
+        if pending is None or pending.status != "pending_approval":
+            raise LookupError("No refund on this session is awaiting approval.")
+        update = refund_node.review(pending, approved, note)
+        self._graph.update_state(config, update, as_node="refund")
+        turn = AgentTurnResult(reply=update["messages"][0][1], intent=Intent.REFUND,
+                               offer=update["offer"], refund=update["refund"])
+        self.turns.append((APPROVER_PREFIX + text, turn))
         return turn

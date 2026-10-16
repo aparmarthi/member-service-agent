@@ -4,6 +4,8 @@
 python -m evals.run             # run all suites, save evals/results/<timestamp>.json
 python -m evals.run --no-save   # dry run
 LLM_PROVIDER=anthropic python -m evals.run    # same suites against Claude (needs ANTHROPIC_API_KEY)
+LLM_PROVIDER=openrouter python -m evals.run   # Claude via OpenRouter (needs OPENROUTER_API_KEY)
+LLM_PROVIDER=openrouter LLM_MODEL=anthropic/claude-haiku-5.5 python -m evals.run   # cheaper model, same gates
 ```
 
 The command prints a scorecard with the change from the previous saved run and lists every failing case. It exits 1 if any thresholded metric fails. CI runs the mock suites as report-only, because the mock router fails two bars by design, so the gate is a live-model run. Results are timestamped JSON in `results/`, kept for regression tracking.

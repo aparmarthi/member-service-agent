@@ -23,6 +23,7 @@ export default function Inspector({ turns }: { turns: InspectedTurn[] }) {
               {t.result.handoff_target && <Badge tone="slate">handoff: {t.result.handoff_target}</Badge>}
               {t.result.crisis && <Badge tone="red">crisis</Badge>}
               {t.result.offer && <Badge tone="amber">offer: {t.result.offer}</Badge>}
+              {t.result.refund && <Badge tone="green">refund: {t.result.refund.status}</Badge>}
               {t.result.shown.length > 0 && <Badge tone="gray">{t.result.shown.length} cards</Badge>}
             </div>
           </li>

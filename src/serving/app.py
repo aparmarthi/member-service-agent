@@ -6,6 +6,7 @@ Endpoints:
     POST /sessions                       start a conversation → session_id
     GET  /sessions/{session_id}          session config + transcript
     POST /sessions/{session_id}/messages send one member turn → AgentTurnResult
+    POST /sessions/{session_id}/approval specialist decides a pending refund in plain text
     GET  /evals                          saved eval runs, newest first (summary)
     GET  /evals/latest                   most recent eval run, with failing cases
 
@@ -37,7 +38,7 @@ from src.models.schemas import AgentTurnResult, Channel
 from src.serving import store
 from src.serving.session import AgentSession
 
-app = FastAPI(title="PBM Member Agent", version="0.4.0")
+app = FastAPI(title="PBM Member Agent", version="0.5.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
@@ -118,6 +119,13 @@ class MessageIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class ApprovalIn(BaseModel):
+    """A specialist's decision on a pending refund, as they would type it."""
+
+    text: str = Field(min_length=1, max_length=200,
+                      examples=["approved", "denied - already reversed by the bank"])
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Liveness check."""
@@ -191,6 +199,28 @@ def send_message(session_id: str, body: MessageIn) -> AgentTurnResult:
     turn = session.send(body.text)
     if store.enabled():
         store.record_turn(session_id, len(session.turns) - 1, body.text, turn,
+                          (time.perf_counter() - start) * 1000)
+    return turn
+
+
+@app.post("/sessions/{session_id}/approval", response_model=AgentTurnResult)
+def review_refund(session_id: str, body: ApprovalIn) -> AgentTurnResult:
+    """Approve or deny a refund awaiting a specialist, then update the member.
+
+    In production this sits behind staff auth; the console shows it as an
+    approval card.
+    """
+    session = _session(session_id)
+    start = time.perf_counter()
+    try:
+        turn = session.review_refund(body.text)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if store.enabled():
+        user_text, _ = session.turns[-1]
+        store.record_turn(session_id, len(session.turns) - 1, user_text, turn,
                           (time.perf_counter() - start) * 1000)
     return turn
 

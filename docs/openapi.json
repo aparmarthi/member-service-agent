@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PBM Member Agent",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "paths": {
     "/health": {
@@ -176,6 +176,56 @@
         }
       }
     },
+    "/sessions/{session_id}/approval": {
+      "post": {
+        "summary": "Review Refund",
+        "description": "Approve or deny a refund awaiting a specialist, then update the member.\n\nIn production this sits behind staff auth; the console shows it as an\napproval card.",
+        "operationId": "review_refund_sessions__session_id__approval_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTurnResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/evals": {
       "get": {
         "summary": "Evals",
@@ -275,6 +325,17 @@
             ],
             "title": "Offer",
             "description": "Yes/no follow-up the agent just offered (e.g. more_orders, pa_cost); a UI can render quick replies for it."
+          },
+          "refund": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefundRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The refund this turn offered or updated."
           }
         },
         "type": "object",
@@ -284,6 +345,26 @@
         ],
         "title": "AgentTurnResult",
         "description": "Structured output of one agent turn (the reply plus turn state)."
+      },
+      "ApprovalIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text",
+            "examples": [
+              "approved",
+              "denied - already reversed by the bank"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ApprovalIn",
+        "description": "A specialist's decision on a pending refund, as they would type it."
       },
       "Channel": {
         "type": "string",
@@ -431,6 +512,7 @@
           "refill",
           "drug_price",
           "escalation",
+          "refund",
           "closing",
           "off_topic"
         ],
@@ -452,6 +534,95 @@
         ],
         "title": "MessageIn",
         "description": "One member utterance."
+      },
+      "RefundLine": {
+        "properties": {
+          "order_number": {
+            "type": "string",
+            "title": "Order Number"
+          },
+          "patient_name": {
+            "type": "string",
+            "title": "Patient Name"
+          },
+          "drug_name": {
+            "type": "string",
+            "title": "Drug Name"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "cancelled",
+              "duplicate",
+              "overcharge"
+            ],
+            "title": "Reason"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_number",
+          "patient_name",
+          "drug_name",
+          "reason",
+          "amount"
+        ],
+        "title": "RefundLine",
+        "description": "One refundable charge, computed from order data (never from the LLM)."
+      },
+      "RefundRequest": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/RefundLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "offered",
+              "approved",
+              "pending_approval",
+              "denied"
+            ],
+            "title": "Status"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Approver's note, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "lines",
+          "total",
+          "status"
+        ],
+        "title": "RefundRequest",
+        "description": "A refund the agent offered, processed, or sent for approval."
       },
       "ResolvedStatus": {
         "properties": {

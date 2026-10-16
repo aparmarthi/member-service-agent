@@ -56,16 +56,17 @@ POST /sessions                        body { scenario?: string, channel?: "chat"
                                       -> 201 SessionCreated   (422 unknown scenario)
 GET  /sessions/{session_id}           -> SessionDetail        (404 unknown session)
 POST /sessions/{session_id}/messages  body { text: string (1..2000) } -> AgentTurnResult (404)
+POST /sessions/{session_id}/approval  body { text: "approved" | "denied - note" } -> AgentTurnResult (409 nothing pending, 422 unclear)
 GET  /evals                           -> EvalSummary[]        (newest first)
 GET  /evals/latest                    -> EvalRun              (404 if none)
 ```
 
 ```ts
 type Channel = "chat" | "voice";
-type Intent = "order_status" | "order_action" | "refill" | "drug_price"
+type Intent = "order_status" | "order_action" | "refill" | "drug_price" | "refund"
             | "escalation" | "closing" | "off_topic";
 type Offer = "more_orders" | "more_refills" | "extended_lookback" | "connect_agent"
-           | "check_refill" | "pa_cost" | "add_to_cart" | "drug_name";
+           | "check_refill" | "pa_cost" | "add_to_cart" | "drug_name" | "refund";
 
 interface ScenarioInfo { name: string; summary: string; patients: string[];
                          member_id: string; dob: string }        // synthetic test credentials
@@ -92,6 +93,10 @@ interface AgentTurnResult {
   has_more: boolean;
   crisis: boolean;           // crisis language detected; the reply contains the 988 Lifeline
   offer: Offer | null;       // follow-up the agent just offered
+  refund: { reference: string; total: number; note: string | null;
+            status: "offered" | "approved" | "pending_approval" | "denied";
+            lines: { order_number: string; patient_name: string; drug_name: string;
+                     reason: "cancelled" | "duplicate" | "overcharge"; amount: number }[] } | null;
 }
 
 interface EvalSummary { timestamp: string; provider: string; passed: boolean;
@@ -129,6 +134,7 @@ Desktop layout is three columns (left sidebar, chat, decision inspector); on mob
   - `connect_agent`: "Yes, connect me", "No thanks"
   - `check_refill` / `add_to_cart`: "Yes", "No"
   - `pa_cost`: "Yes, what's the cost?", "No thanks"
+  - `refund`: "Yes, process it", "No thanks"
   - `drug_name`: no chips; set the input placeholder to "Type a medication name"
 - **Crisis banner.** If `crisis`, show a prominent, calm (not alarming-red) banner above the input: "988 Suicide & Crisis Lifeline — call or text 988", with a `tel:988` link. It persists for the rest of the session.
 - **Handoff state.** If `escalated`, show a system message "Connecting you with a Member Support Specialist…" and disable the input. Offer a "Start new conversation" button.
@@ -136,6 +142,8 @@ Desktop layout is three columns (left sidebar, chat, decision inspector); on mob
 - In Voice mode, show a "Voice simulation" label. Add an optional speaker toggle that reads agent replies aloud with the browser `speechSynthesis` API.
 - If the API returns 404 for a session, show "Session expired" with a restart button. With Postgres, sessions survive API restarts, so this is rare. In memory mode it happens on every restart.
 - Show a typing indicator while a request is in flight.
+
+- **Refunds.** Render `refund` as a card (lines, total, reference, status badge) in place of the reply's bullet lines. While the latest refund is `pending_approval`, show a "Specialist approval" card in the sidebar with Approve / Deny buttons and a plain-text box; each sends `POST /approval`. Never render `refund.note` to the member.
 
 **Right: decision inspector**
 

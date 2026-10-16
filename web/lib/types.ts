@@ -2,7 +2,7 @@
 
 export type Channel = "chat" | "voice";
 export type Intent =
-  | "order_status" | "order_action" | "refill" | "drug_price"
+  | "order_status" | "order_action" | "refill" | "drug_price" | "refund"
   | "escalation" | "closing" | "off_topic";
 
 export interface Health { status: string; provider: string; storage: string }
@@ -34,6 +34,22 @@ export interface ResolvedStatus {
   price: number | null;
 }
 
+export interface RefundLine {
+  order_number: string;
+  patient_name: string;
+  drug_name: string;
+  reason: "cancelled" | "duplicate" | "overcharge";
+  amount: number;
+}
+
+export interface RefundRequest {
+  reference: string;
+  lines: RefundLine[];
+  total: number;
+  status: "offered" | "approved" | "pending_approval" | "denied";
+  note: string | null; // approver's internal note; never shown to the member
+}
+
 export interface AgentTurnResult {
   reply: string;
   intent: Intent;
@@ -43,6 +59,7 @@ export interface AgentTurnResult {
   has_more: boolean;
   crisis: boolean;
   offer: string | null;
+  refund: RefundRequest | null;
 }
 
 export interface Threshold { op: string; value: number; passed: boolean }

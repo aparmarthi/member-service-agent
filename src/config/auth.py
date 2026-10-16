@@ -33,7 +33,7 @@ class CallerType(str, Enum):
 
 
 # Intents that require Level 1.5 step-up because they expose PHI/PII.
-PHI_INTENTS = {"order_status", "order_action", "refill", "drug_price"}
+PHI_INTENTS = {"order_status", "order_action", "refill", "drug_price", "refund"}
 
 # Primary plan type codes take precedence over secondary.
 PRIMARY_PLAN_CODES = {1, 2, 3, 4, 5, 14, 15, 16, 17, 18}

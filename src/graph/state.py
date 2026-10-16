@@ -19,6 +19,7 @@ from src.models.schemas import (
     Member,
     PriceQuote,
     RefillCandidate,
+    RefundRequest,
     ResolvedStatus,
 )
 
@@ -49,6 +50,9 @@ class AgentState(TypedDict, total=False):
         crisis: Set when the lexicon gate or the LLM flags crisis language this
             turn; drives the 988 response. Either detector can raise it, neither
             can clear it.
+        refund: The refund offered, processed, or awaiting approval.
+        refund_handled: Order numbers already refunded or submitted, so they
+            are never offered twice.
     """
 
     messages: Annotated[list, add_messages]
@@ -70,3 +74,5 @@ class AgentState(TypedDict, total=False):
     offer: str | None
     followup: str | None
     crisis: bool
+    refund: RefundRequest | None
+    refund_handled: list[str]

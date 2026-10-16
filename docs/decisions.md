@@ -151,3 +151,28 @@ for delivery.
 - The API still caches live sessions in process memory. Postgres is the source of truth; the cache is only a fast path.
 - Horizontal scaling works because any replica can rehydrate a session from Postgres. Two replicas writing the same session at once isn't guarded, so use sticky sessions or a per-thread lock if that matters.
 - Checkpoints and `turns.user_text` hold conversation content, which is PHI with real members. That means encryption at rest (RDS + KMS) and a retention window. Neither is implemented, because all data here is synthetic.
+
+## ADR-014: Refunds: code computes, threshold decides, a person approves in plain text
+**Decision:**
+- The refund amount comes from order data. `owed = charges - plan price of what was filled`. That covers three cases: cancelled after the charge, a duplicate charge, and an overcharged copay.
+- The LLM only recognizes that the member is asking for a refund.
+- The member's "yes" processes refunds up to `AUTO_APPROVE_LIMIT` ($50) at once.
+- Above the limit, the refund waits as `pending_approval`. A specialist decides with `POST /sessions/{id}/approval` and plain text: "approved", "denied - already reversed".
+  - A regex reads the decision. There is no JSON payload and no LLM.
+  - The agent then tells the member the outcome.
+- Lost or damaged shipments go to a Member Support Specialist and aren't computed.
+
+**Why:**
+- The demo used to stall at the approval step, where someone had to paste a JSON resume payload. A plain "approved" is what a pharmacy-support approver would actually type.
+- Money is the "code decides truth" boundary (ADR-002), so no model output can propose, edit or approve an amount.
+- A threshold keeps the common case (small copay errors) self-service and puts human review where the dollars are.
+- Lost and damaged claims need judgment the order data can't supply: reship or refund, fraud signals, controlled-drug rules.
+
+**Guardrail:** the approval path writes to the thread directly (`graph.update_state(..., as_node="refund")`) and never goes through the router. A member typing "approved" in chat lands in the router like any other message and cannot approve anything. Tests cover this. The approver's note is stored with the refund for audit but never shown to the member. Approver turns are prefixed `[approver] ` in the transcript and turn log.
+
+**Not LangGraph `interrupt()`:** an interrupt suspends the member's thread until someone resumes it with `Command(resume=...)`. The member couldn't keep talking while a refund waits, and resuming means passing a structured payload, which is the original pain point. A status field in state lets the conversation continue and lets any channel (the console now, a queue later) decide.
+
+**Trade-offs:**
+- The approval endpoint has no staff auth, because this is a demo console. In production it would sit behind staff SSO and log the approver's identity.
+- "Processed" means recorded in state. The payment reversal itself is stubbed, just like the web deep links.
+- $50 is a per-client setting, not a universal number.

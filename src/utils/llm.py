@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 # Default Claude model when routing through OpenRouter (per project convention).
-DEFAULT_CLAUDE_MODEL = "anthropic/claude-opus-4.1"
+DEFAULT_CLAUDE_MODEL = "anthropic/claude-opus-5.5"
 DEFAULT_ANTHROPIC_MODEL = "claude-opus-5"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
@@ -74,6 +74,8 @@ class MockProvider(LLMProvider):
               "end my life"), "crisis"),
             (("agent", "representative", "human", "supervisor", "person",
               "useless", "ridiculous"), "escalation"),
+            (("refund", "money back", "charged twice", "double charged", "overcharged", "charged for",
+              "charged me"), "refund"),
             (("refill", "reorder", "renew"), "refill"),
             (("price", "cost", "how much", "copay"), "drug_price"),
             (("cancel", "update address", "change address", "expedite",
@@ -124,7 +126,12 @@ class AnthropicProvider(LLMProvider):
 
 
 class OpenRouterProvider(LLMProvider):
-    """OpenRouter backend (reaches Claude, GPT, Gemini via one API)."""
+    """OpenRouter backend (reaches Claude, GPT, Gemini via one API).
+
+    Prefers Anthropic's own endpoint and falls back only to hosts that support
+    every parameter sent, so the schema is never silently dropped. Effort is
+    ``low`` for the same reason as :class:`AnthropicProvider`.
+    """
 
     def __init__(self, model: str | None = None) -> None:
         self.model = model or os.getenv("LLM_MODEL", DEFAULT_CLAUDE_MODEL)
@@ -140,9 +147,15 @@ class OpenRouterProvider(LLMProvider):
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "temperature": 0,
+            "reasoning": {"effort": "low"},
+            "provider": {"order": ["anthropic"], "require_parameters": True},
         }
-        if json_mode:
+        if schema:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "output", "strict": True, "schema": schema},
+            }
+        elif json_mode:
             payload["response_format"] = {"type": "json_object"}
         resp = httpx.post(
             "https://openrouter.ai/api/v1/chat/completions",

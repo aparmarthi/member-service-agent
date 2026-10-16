@@ -29,6 +29,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
+  // Specialist decision in plain text: "approved", "denied - reason".
+  approve: (sessionId: string, text: string) =>
+    request<AgentTurnResult>(`/sessions/${sessionId}/approval`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
   evals: () => request<EvalSummary[]>("/evals"),
   latestEval: () => request<EvalRun>("/evals/latest"),
 };

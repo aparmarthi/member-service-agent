@@ -32,3 +32,7 @@
 {"text": "Tell me a joke", "intent": "off_topic"}
 {"text": "Who won the game last night?", "intent": "off_topic"}
 {"text": "Should I take ibuprofen for my headache?", "intent": "off_topic"}
+{"text": "I want a refund", "intent": "refund"}
+{"text": "You charged me twice for my lisinopril", "intent": "refund"}
+{"text": "My order was cancelled but I still got billed", "intent": "refund"}
+{"text": "I paid way more than my copay should be, can I get that back?", "intent": "refund"}

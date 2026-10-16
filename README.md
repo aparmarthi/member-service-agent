@@ -102,8 +102,8 @@ Pluggable provider, selected by env var (see `.env.example`):
 export LLM_PROVIDER=anthropic    # Claude via the Anthropic SDK (default model claude-opus-5)
 export ANTHROPIC_API_KEY=sk-ant-...
 # or
-export LLM_PROVIDER=openrouter   # routes to Claude by default
-export OPENROUTER_API_KEY=sk-or-...
+export LLM_PROVIDER=openrouter   # Claude Opus 5.5 by default, Anthropic-hosted first
+export OPENROUTER_API_KEY=sk-or-...  # or put it in .env, then: set -a && source .env && set +a
 # or
 export LLM_PROVIDER=gemini
 export GOOGLE_API_KEY=...
@@ -111,7 +111,7 @@ export GOOGLE_API_KEY=...
 
 ## Scenarios (synthetic)
 
-`single_patient_mixed_statuses`, `family_plan`, `no_orders`, `older_orders_only`, `escalation_required`, `payment_hold`, plus the refill scenarios. Each mirrors a named scenario from the source requirements. Order dates are relative to today, so lookback windows behave the same on every run.
+`single_patient_mixed_statuses`, `family_plan`, `no_orders`, `older_orders_only`, `escalation_required`, `payment_hold`, plus the refill scenarios and `refund_small` / `refund_large`. Each mirrors a named scenario from the source requirements. Order dates are relative to today, so lookback windows behave the same on every run.
 
 ## Capabilities (built deep)
 
@@ -128,6 +128,12 @@ export GOOGLE_API_KEY=...
 - **Authentication:** Level 1.5 step-up across turns (member ID or Rx number →
   DOB → original request replayed), with bounded retries, privacy-flag transfer
   and caller-type routing. Identity tokens never reach the LLM (ADR-009).
+- **Refunds:** the amount is computed from order data (cancelled after charge,
+  duplicate charge, overcharged copay), never by the LLM. The member's "yes"
+  processes refunds up to $50 at once. Larger ones go to a specialist, who
+  types "approved" or "denied" (`POST /sessions/{id}/approval`) and the agent
+  tells the member. Nothing the member types approves a refund. Lost or
+  damaged shipments go to a specialist (ADR-014).
 - **Escalation:** crisis-safe (988 + warm handoff), ordered before routing.
 
 Both **chat and voice** run on the one graph, diverging by config.
