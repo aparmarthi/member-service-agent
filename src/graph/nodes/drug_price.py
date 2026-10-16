@@ -1,7 +1,7 @@
 """Drug price node — real implementation with coverage, PA, and alternatives.
 
 Extracts the drug name from the utterance, runs a deterministic benefit lookup,
-and handles the three coverage outcomes from the pricing stories: not-covered
+and handles the three coverage outcomes: not-covered
 (offer generic alternatives), prior-auth-required (explain + offer cost), and a
 covered price. The agent never recommends a drug for a condition.
 """

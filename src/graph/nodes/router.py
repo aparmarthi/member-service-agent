@@ -1,9 +1,10 @@
 """Router + safety gate nodes (Topic Selector + Trust Layer equivalents).
 
-Design lesson carried over from the production incident: crisis/self-harm intent
-is checked FIRST, deterministically, and routed to escalation *before* any
-generic content moderation can intercept it. In a managed platform you don't
-control that ordering; here we do, and we make it explicit.
+Design lesson (a general failure mode): a generic intent router or moderation
+layer that runs first can absorb crisis language into an ordinary intent or a
+canned refusal. So crisis/self-harm intent is checked FIRST, deterministically,
+and routed to escalation *before* anything else can intercept it. In a managed
+platform you may not control that ordering; here we do, and we make it explicit.
 
 Multi-turn: when the previous turn ended on a yes/no offer ("want to see the
 rest?"), the router resolves the reply deterministically instead of asking the

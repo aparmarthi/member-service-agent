@@ -111,10 +111,10 @@ def resolve_statuses(
 def check_refill_eligibility(member: Member) -> list[RefillCandidate]:
     """Evaluate every prescription for refill eligibility, sorted for listing.
 
-    Mirrors the Check Refill Eligibility service contract: each Rx's condition
+    Stand-in for a refill-eligibility service: each Rx's condition
     code is classified deterministically, refillable Rxs are sorted by list
     priority, and non-refillable ones are retained (the agent still informs the
-    member and moves on per the per-condition stories). An Rx whose current
+    member and moves on, per condition code). An Rx whose current
     order carries a must-transfer hold is never offered for refill —
     it transfers, matching what Order Status says about the same Rx.
 
@@ -179,8 +179,8 @@ _ALTERNATIVES = {
 def price_drug(drug_name: str, *, strength: str | None = None) -> PriceQuote:
     """Return a coverage/price quote for a drug (mock benefit lookup).
 
-    Deterministic stand-in for the drugPrice experience API. Handles the three
-    outcomes the pricing stories require: not-covered, prior-auth-required, and
+    Deterministic stand-in for a drug-pricing API. Handles the three
+    coverage outcomes: not-covered, prior-auth-required, and
     a covered price (with generic alternatives when available).
 
     Args:

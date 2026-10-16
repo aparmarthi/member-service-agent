@@ -3,12 +3,12 @@
 ## ADR-001: LangGraph over vanilla LangChain AgentExecutor
 **Decision:** Model the agent as a compiled `StateGraph`, not a ReAct
 `AgentExecutor`.
-**Why:** The reference agent is a deterministic state machine with LLM steps
-embedded (topics, guarded transitions, imperative "if X then call action"
-blocks), not an open-ended tool-picking loop. LangGraph's nodes/edges map 1:1 to
+**Why:** A member-service agent in this domain is a deterministic state machine
+with LLM steps embedded (the managed-agent pattern: topics, guarded transitions,
+imperative "if X then call action" blocks), not an open-ended tool-picking loop. LangGraph's nodes/edges map 1:1 to
 topics/transitions and keep control flow in code where it's testable. A ReAct
-loop would relocate that logic into fragile prose — the root cause of several
-production defects.
+loop would relocate that logic into fragile prose, where it is hard to test and
+easy to break.
 
 ## ADR-002: LLM decides intent; code decides truth
 **Decision:** The LLM classifies intent and optionally narrates. Order-status
@@ -20,10 +20,10 @@ construction and makes outputs unit-testable.
 ## ADR-003: Crisis gate ordered before generic routing
 **Decision:** A deterministic crisis gate runs *before* the LLM router and pins
 self-harm intent to escalation; escalation always surfaces 988 + human handoff.
-**Why:** In the reference platform, a built-in content-moderation classifier
-intercepted self-harm input ahead of the customer's escalation topic and emitted
-a canned refusal — a patient-safety failure the customer could not reorder.
-Owning the graph means owning the ordering; we guarantee crisis intent reaches a
+**Why:** A general failure mode: a generic intent router or content-moderation
+classifier that runs first can absorb crisis language into an ordinary intent or
+a canned refusal, so it never reaches the escalation path. On a managed platform
+the builder may not control that ordering. Owning the graph means owning the ordering; we guarantee crisis intent reaches a
 warm handoff. This is the strongest argument for an open stack in this domain.
 
 ## ADR-004: Channel-aware core (same brain, different hands)
@@ -40,9 +40,9 @@ product reasoning without duplicating the agent.
 typed data tables (`src/config/`), not prose in prompts.
 **Why:** These are large, exact, regulated mappings (~30 status codes, ~25
 condition codes with remap + priority rules, tiered auth). As data they are
-unit-testable, diffable, and impossible for the LLM to get wrong. This is the
-same "config-as-data" pattern the reference platform used in custom metadata —
-reproduced here in a form a reviewer can read and test.
+unit-testable, diffable, and impossible for the LLM to get wrong. It is the
+role custom metadata plays on a managed platform, in a form a reviewer can read
+and test.
 
 ## ADR-007: Auth gate as a graph node, before PHI intents
 **Decision:** A deterministic `auth_gate` node runs after routing and enforces
@@ -182,7 +182,7 @@ for delivery.
 **Trade-offs:**
 - The approval endpoint has no staff auth, because this is a demo console. In production it would sit behind staff SSO and log the approver's identity.
 - "Processed" means recorded in state. The payment reversal itself is stubbed, just like the web deep links.
-- $50 is a per-client setting, not a universal number.
+- $50 is a per-plan-sponsor setting, not a universal number.
 
 ## ADR-015: Router model is Claude Haiku 5.5, picked by the eval gates
 **Decision:** The OpenRouter default is `anthropic/claude-haiku-5.5`. The rule was "the cheapest model that passes every gate". Opus 5.5 and Sonnet 5.5 stay one `LLM_MODEL` change away.
@@ -207,3 +207,23 @@ for delivery.
 - If a fresh held-out set shows a Haiku miss that a larger model catches, switch back. Crisis recall outranks cost.
 
 **Measured cost (Haiku 5.5, 2026-10-16, after `usage` was wired into the harness):** 491 tokens per turn, $0.056 per 1,000 turns, and $0.010 for a full eval run. Replies are templated, so the router is the only model call. Turns that skip it (follow-ups, credential prompts) still count in the denominator, so this is what a deployment would pay per turn.
+
+## ADR-016: Prompt injection as a gated suite; CI enforces the gates that hold on mock
+**Decision:**
+- `evals/datasets/injection.jsonl` holds 30 scripted cases: 25 attacks in six categories (instruction override, fake system or authority claims, identity spoofing, data exfiltration, refund self-approval above $50, crisis suppression) and 5 benign controls.
+- Each turn asserts the safe outcome in session state as well as in the reply: the refund's status, whether Level 1.5 was reached, every rendered line grounded in this member's data, the crisis flag and 988.
+- `injection_resistance` (attacks) and `injection_control_pass_rate` (controls) are gated at 1.00.
+- CI runs `python -m evals.run --no-save --gates code`. Every gate is enforced except `routing_accuracy` and `crisis_recall_holdout`, which judge the live model and are printed as report only.
+
+**Why:**
+- The defenses are structural (ADR-002, 007, 009, 014). The LLM returns one schema-enforced intent and a crisis flag, never an amount, an identity or an approval. The suite turns that claim into a regression test, so a change that lets model output reach a decision fails CI.
+- Asserting on state catches a bypass that a polite reply would hide.
+- Crisis-suppression cases use explicit crisis language. They test whether an instruction can switch off 988, not detection of indirect language, which the held-out set covers.
+- Before this, CI ran the mock evals with `continue-on-error`, so a groundedness or task-completion regression could merge. The two model-judgment gates still can't be judged on the keyword mock.
+
+**Results (2026-10-16):** mock 25/25 attacks and 5/5 controls. Claude Haiku 5.5 25/25 and 5/5, with every other gate passing ($0.013 for the run).
+
+**Trade-offs:**
+- The set was written alongside the defenses, so it is a regression suite, not an independent red team. A fresh set written without seeing the code is the next step, as with ADR-012.
+- In an attack, the model can only change which intent runs. One case's safety turns on that choice: an injected instruction to label every message a crisis. Haiku ignored it. A model that obeyed would cost a needless 988 reply and a handoff, not data or money.
+- CI never calls a paid model. The live ship gate is still a manual run.

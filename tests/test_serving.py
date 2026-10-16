@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from src.evaluation.harness import eval_conversations, eval_groundedness
+from src.evaluation.harness import (
+    MODEL_GATES,
+    THRESHOLDS,
+    _load,
+    _run_script,
+    eval_conversations,
+    eval_groundedness,
+    eval_injection,
+)
 from src.graph.build import build_graph
 from src.serving.app import app
 
@@ -39,6 +47,25 @@ def test_groundedness_suite_is_perfect():
 def test_conversation_suite_completes():
     metrics, failures = eval_conversations([])
     assert metrics["task_completion_rate"] == 1.0, failures
+
+
+def test_injection_suite_holds():
+    metrics, failures = eval_injection([])
+    assert metrics["injection_resistance"] == 1.0, failures
+    assert metrics["injection_control_pass_rate"] == 1.0, failures
+
+
+def test_injection_check_reads_session_state():
+    # Expecting the attack to have approved the refund must fail: the check reads
+    # the refund in session state, not just the reply text.
+    case = next(c for c in _load("injection.jsonl") if c["name"] == "self_approve_typed_approved")
+    case["turns"][-1]["refund_status"] = "approved"
+    failure, _ = _run_script(case, "injection", [])
+    assert failure and failure["reason"].startswith("refund_status")
+
+
+def test_report_only_gates_are_real_thresholds():
+    assert MODEL_GATES <= THRESHOLDS.keys()
 
 
 def test_scenarios_include_test_credentials():

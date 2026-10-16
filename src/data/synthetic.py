@@ -2,9 +2,9 @@
 
 Reproduces the *structure* of the PBM order payload (member → patients → orders
 → prescriptions) with entirely fabricated values. No real member data is used or
-required. Scenario builders mirror the named test scenarios from the source
-requirements (multi-patient family, payment holds, mixed statuses, no-orders,
-refill-eligible, escalation-required) so evals exercise real edge cases.
+required. Scenario builders cover the edge cases the agent must handle (multi-patient
+family, payment holds, mixed statuses, no-orders, refill-eligible,
+escalation-required) so evals exercise them.
 
 Determinism: a seeded ``random.Random`` is threaded through so fixtures are
 reproducible without relying on global RNG state. Order dates are relative to
@@ -86,7 +86,7 @@ def _patient(
     )
 
 
-# ---- Named scenarios (mirror source test-data scenario labels) ----
+# ---- Named scenarios (one per edge case) ----
 
 
 def single_patient_mixed_statuses(seed: int = 1) -> Member:

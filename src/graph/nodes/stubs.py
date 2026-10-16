@@ -19,8 +19,7 @@ def escalation(state: AgentState) -> AgentState:
     """Hand off to a human. Crisis-safe: always surfaces a warm transfer.
 
     For crisis turns (``crisis`` set by the lexicon gate or the LLM) we lead
-    with the crisis resource, then transfer —
-    the behavior the managed platform failed to guarantee.
+    with the crisis resource, then transfer.
 
     Args:
         state: Current agent state.

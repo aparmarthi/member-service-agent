@@ -3,9 +3,8 @@
 Pipeline: fetch (grounding) → deterministic resolve+rank (within the channel's
 lookback window) → channel-aware paginate → render. The LLM is deliberately kept
 out of status *derivation*; rendering is a deterministic template so output is
-faithful by construction (the anti-hallucination lesson from the production
-agent's strict output contract, implemented structurally rather than via prompt
-pleading).
+faithful by construction (a strict output contract, implemented structurally
+rather than via prompt pleading).
 
 Every dead end ends on an offer the router can resolve next turn: "see the
 rest", chat's 6-month search, a specialist, or (voice) a refill check.

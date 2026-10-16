@@ -2,8 +2,8 @@
 
 Presents refillable prescriptions in priority order, states cost when available,
 offers to add eligible Rxs to the cart, and handles the non-refillable outcomes
-(too early, too old, controlled, not available, renewal, transfer) with the
-exact member messaging from the refill stories. Transfer-outcome codes escalate.
+(too early, too old, controlled, not available, renewal, transfer) with fixed
+member messaging per condition code. Transfer-outcome codes escalate.
 """
 
 from __future__ import annotations
