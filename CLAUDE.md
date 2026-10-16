@@ -9,7 +9,7 @@ This repo follows the FDE default stack. It overrides the global "Streamlit for 
 | Database | PostgreSQL via psycopg 3 (`src/serving/store.py`) | Workflow state (LangGraph `PostgresSaver`), sessions, turn audit log. |
 | Vector search | pgvector, in the same Postgres | Only when retrieval exists. No separate vector DB. |
 | Files | S3 | Only when there are file inputs. |
-| AI | Official model SDKs (Anthropic Python SDK) | Structured outputs for anything the code parses. The mock provider stays the default for tests. |
+| AI | Claude through OpenRouter (Haiku 5.5 default, ADR-015); the Anthropic Python SDK path is wired but unmeasured | Structured outputs for anything the code parses. The mock provider stays the default for tests. |
 | Data processing | SQL first, then pandas or Polars | |
 | Deployment | Docker, AWS (ECR, ECS Fargate, RDS, Secrets Manager) | docs/DEPLOY.md |
 | Testing and delivery | pytest, GitHub Actions | CI runs pytest against a Postgres service and builds and smoke-tests the image. |
@@ -25,7 +25,8 @@ This repo follows the FDE default stack. It overrides the global "Streamlit for 
 ## Commands
 ```bash
 pytest -q
-python -m evals.run            # LLM_PROVIDER=anthropic for the live ship gate
+python -m evals.run            # mock; CI enforces the code gates with --gates code
+LLM_PROVIDER=openrouter python -m evals.run   # live ship gate, all gates (needs OPENROUTER_API_KEY)
 python -m scripts.demo
 uvicorn src.serving.app:app --reload --port 8000
 docker compose up --build      # + --profile web for the console on :3000

@@ -43,4 +43,4 @@ def test_dob_recovery_state_machine():
 def test_caller_type_routing():
     assert route_caller_type(CallerType.MEMBER) == "member_flow"
     assert route_caller_type(CallerType.PHARMACIST) == "pharmacy_help_desk"
-    assert route_caller_type(CallerType.DOCTOR) == "icm_clinical"
+    assert route_caller_type(CallerType.DOCTOR) == "clinical_review"
