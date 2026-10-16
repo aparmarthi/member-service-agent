@@ -205,4 +205,5 @@ for delivery.
 - These are small sets: 38 routing cases and 31 held-out crisis positives. One run isn't a guarantee.
 - Re-run all three models whenever any of these change: the router prompt, the intent list (for example a new intent), or a model version.
 - If a fresh held-out set shows a Haiku miss that a larger model catches, switch back. Crisis recall outranks cost.
-- Token cost per turn isn't measured yet (latency only). Wire `usage` into the harness before quoting a dollar figure per conversation.
+
+**Measured cost (Haiku 5.5, 2026-10-16, after `usage` was wired into the harness):** 491 tokens per turn, $0.056 per 1,000 turns, and $0.010 for a full eval run. Replies are templated, so the router is the only model call. Turns that skip it (follow-ups, credential prompts) still count in the denominator, so this is what a deployment would pay per turn.

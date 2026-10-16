@@ -151,6 +151,8 @@ Both **chat and voice** run on the one graph, diverging by config.
 | Crisis false-escalation rate (dev / held-out) | 0.00 / 0.10 | ≤ 0.10 ✅ |
 | Routing accuracy | 0.79 | ≥ 0.90 ❌ mock keyword router; judge with a live LLM |
 
+On Claude Haiku 5.5 (the default live model) every gate passes: routing 1.00, held-out crisis recall 1.00, p95 2.0 s, $0.056 per 1,000 turns (ADR-015).
+
 ## Status
 
 - **Stubbed (real interfaces):** in-conversation order-action *execution*

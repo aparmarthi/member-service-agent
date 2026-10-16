@@ -28,7 +28,22 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 class LLMProvider(ABC):
-    """Minimal chat interface every backend implements."""
+    """Minimal chat interface every backend implements.
+
+    Backends that report usage add to the counters below via :meth:`_record`.
+    ``cost_usd`` becomes None once any call's dollar cost is unknown.
+    """
+
+    calls = 0
+    tokens_in = 0
+    tokens_out = 0
+    cost_usd: float | None = 0.0
+
+    def _record(self, tokens_in: int, tokens_out: int, cost: float | None) -> None:
+        self.calls += 1
+        self.tokens_in += tokens_in
+        self.tokens_out += tokens_out
+        self.cost_usd = None if cost is None or self.cost_usd is None else self.cost_usd + cost
 
     @abstractmethod
     def complete(self, system: str, user: str, *, json_mode: bool = False,
@@ -120,6 +135,7 @@ class AnthropicProvider(LLMProvider):
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
         )
+        self._record(resp.usage.input_tokens, resp.usage.output_tokens, None)  # SDK reports tokens, not dollars
         if resp.stop_reason == "refusal":
             return self._REFUSED
         return next(b.text for b in resp.content if b.type == "text")
@@ -164,7 +180,10 @@ class OpenRouterProvider(LLMProvider):
             timeout=30,
         )
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        body = resp.json()
+        usage = body.get("usage", {})
+        self._record(usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), usage.get("cost"))
+        return body["choices"][0]["message"]["content"]
 
 
 class GeminiProvider(LLMProvider):

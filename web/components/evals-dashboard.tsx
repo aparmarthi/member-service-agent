@@ -13,11 +13,14 @@ const TRENDED = [
 ];
 
 function fmt(metric: string, value: number): string {
+  if (metric.endsWith("_usd")) return `$${value.toFixed(4)}`;
+  if (metric.startsWith("tokens_")) return value.toFixed(0);
   return metric.endsWith("_ms") ? `${value.toFixed(1)} ms` : `${(value * 100).toFixed(1)}%`;
 }
 
 function fmtDelta(metric: string, delta: number): string {
   const sign = delta > 0 ? "+" : "";
+  if (metric.endsWith("_usd") || metric.startsWith("tokens_")) return `${delta < 0 ? "-" : "+"}${fmt(metric, Math.abs(delta))}`;
   return metric.endsWith("_ms") ? `${sign}${delta.toFixed(1)} ms` : `${sign}${(delta * 100).toFixed(1)} pts`;
 }
 

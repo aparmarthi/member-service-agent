@@ -13,8 +13,11 @@ Suites (datasets in ``evals/datasets/``):
 * **conversations** — scripted multi-turn tasks (pagination, auth, follow-ups).
   Yields task completion, containment (North Star proxy), and escalation rate.
 
-Every suite records per-turn latency. Cost is $0 on the mock provider; live
-providers report latency only (token accounting is not wired in).
+Every suite records per-turn latency. Providers that report usage also yield
+``tokens_per_turn``, and, when the provider bills in dollars (OpenRouter),
+``cost_per_1k_turns_usd`` and ``eval_cost_usd``. Mock reports none of these.
+Turns that skip the LLM (follow-ups, credential prompts) count in the
+denominator, so the per-turn figures are what a deployment would pay.
 """
 
 from __future__ import annotations
@@ -183,12 +186,13 @@ def _check_turn(turn: dict, reply: str, intent: str, escalated: bool) -> str | N
     return None
 
 
-def eval_conversations(latencies: list[float]) -> tuple[dict, list[dict]]:
+def eval_conversations(latencies: list[float], provider=None) -> tuple[dict, list[dict]]:
     """Scripted multi-turn tasks: completion, containment, and escalation rates."""
     convs, failures = _load("conversations.jsonl"), []
     completed = contained = turns = escalated_turns = 0
     for conv in convs:
-        session = AgentSession(conv["scenario"], Channel(conv["channel"]), verified=conv["verified"])
+        session = AgentSession(conv["scenario"], Channel(conv["channel"]), verified=conv["verified"],
+                               provider=provider)
         first_rx = next((rx.rx_number for p in session.member.patients for o in p.orders
                          for rx in o.prescriptions), "")
         values = {"member_id": session.member.member_id, "rx_number": first_rx}
@@ -227,6 +231,17 @@ THRESHOLDS = {
 }
 
 
+def _usage_metrics(provider, turns: int) -> dict[str, float]:
+    """Tokens and dollars per turn, from whatever the provider counted."""
+    if not getattr(provider, "calls", 0):
+        return {}
+    out = {"tokens_per_turn": (provider.tokens_in + provider.tokens_out) / turns}
+    if provider.cost_usd is not None:
+        out["cost_per_1k_turns_usd"] = provider.cost_usd / turns * 1000
+        out["eval_cost_usd"] = provider.cost_usd
+    return out
+
+
 def run_all() -> dict:
     """Run every suite against the env-selected provider.
 
@@ -242,9 +257,10 @@ def run_all() -> dict:
         m, f = suite(graph, latencies)
         metrics.update(m)
         failures += f
-    m, f = eval_conversations(latencies)
+    m, f = eval_conversations(latencies, provider)
     metrics.update(m)
     failures += f
+    metrics.update(_usage_metrics(provider, turns=len(latencies)))
 
     q = statistics.quantiles(latencies, n=20)
     metrics["latency_p50_ms"] = statistics.median(latencies)

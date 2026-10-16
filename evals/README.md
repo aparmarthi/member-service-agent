@@ -24,6 +24,7 @@ The command prints a scorecard with the change from the previous saved run and l
 | | | `containment_rate` | — | North Star proxy: containable tasks resolved without a human. |
 | | | `escalation_rate` | — | Share of turns handed to a human (tracked, not gated). |
 | All | — | `latency_p50_ms` / `p95` | — | Graph latency per turn. On the mock provider this is orchestration overhead only. |
+| All (live) | — | `tokens_per_turn`, `cost_per_1k_turns_usd`, `eval_cost_usd` | — | From the provider's usage report, averaged over every turn, including turns that skip the LLM. Dollars appear only when the provider bills them (OpenRouter); the Anthropic SDK reports tokens only. Absent on mock. |
 
 Conversation turns can use `{member_id}` and `{rx_number}` placeholders. They are filled from the synthetic member, so the auth paths are exercised without hard-coding identifiers.
 
@@ -64,4 +65,3 @@ An earlier build consumed a crisis utterance as an auth credential. While waitin
 
 - Human eval and multi-LLM consensus grading of free-text replies. Replies are templated today, so string assertions are enough. This becomes necessary once replies are generated.
 - Prompt-injection resistance. The surface is small, because the LLM only emits an intent label and never sees identity tokens, but there is no adversarial set yet.
-- Cost per conversation. It's $0 on mock. Once there's a live run, record tokens per turn.
