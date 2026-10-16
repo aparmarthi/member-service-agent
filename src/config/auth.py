@@ -209,10 +209,10 @@ def route_caller_type(caller_type: CallerType) -> str:
 
     Returns:
         A routing marker: ``"member_flow"``, ``"pharmacy_help_desk"``, or
-        ``"icm_clinical"`` (doctor/office → clinical routing via ICM).
+        ``"clinical_review"`` (doctor/office → the clinical line).
     """
     if caller_type is CallerType.MEMBER:
         return "member_flow"
     if caller_type is CallerType.PHARMACIST:
         return "pharmacy_help_desk"
-    return "icm_clinical"
+    return "clinical_review"
