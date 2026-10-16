@@ -32,14 +32,16 @@ correctly from grounded system data without unnecessary escalation.
 - Step-up auth across turns (member ID / Rx number → DOB → replay of the original
   request); identity tokens are matched in code and never sent to the LLM.
 - Crisis-safe escalation with 988 + human handoff, including mid-authentication.
-- Serving: FastAPI (`/health`, sessions), Streamlit demo, Dockerfile.
+- Serving: FastAPI (sessions, transcript, eval endpoints), Postgres persistence
+  (checkpoints, sessions, turn audit log), Dockerfile + compose, GitHub Actions CI.
+  Next.js console specced in `docs/BOLT_PROMPT.md`; AWS layout in `docs/DEPLOY.md`.
 - Eval harness (`evals/`) for every metric above, with timestamped results.
 - Stubs (real interfaces): order-action execution (deep-link only).
 
 ## Out of scope (next passes)
 - Deep order-action execution (voice inline execute + confirmation).
 - Live-LLM measurement of crisis recall on the held-out set (the ship gate).
-- Durable session store (Postgres/Redis checkpointer) and idle-session expiry.
+- Idle-session expiry and a retention window for conversation data.
 - RAG for benefit inquiry.
 
 ## Success criteria (acceptance, from source user stories)

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PBM Member Agent",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "paths": {
     "/health": {
@@ -407,12 +407,18 @@
           "provider": {
             "type": "string",
             "title": "Provider"
+          },
+          "storage": {
+            "type": "string",
+            "title": "Storage",
+            "description": "\"postgres\" when DATABASE_URL is set, else \"memory\"."
           }
         },
         "type": "object",
         "required": [
           "status",
-          "provider"
+          "provider",
+          "storage"
         ],
         "title": "HealthResponse",
         "description": "Liveness payload."

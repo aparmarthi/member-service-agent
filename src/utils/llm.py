@@ -1,9 +1,11 @@
 """Pluggable LLM provider abstraction.
 
-One interface, three backends selected by the ``LLM_PROVIDER`` env var:
+One interface, four backends selected by the ``LLM_PROVIDER`` env var:
 
 * ``mock``      — deterministic, zero-cost, no network. Default; lets the repo
                   clone-and-run and keeps evals hermetic.
+* ``anthropic`` — Claude via the official Anthropic SDK, with structured outputs
+                  when the caller passes a JSON schema. Uses ``ANTHROPIC_API_KEY``.
 * ``openrouter``— routes to Claude (default) or any OpenRouter model. Uses
                   ``OPENROUTER_API_KEY``. Honors the "default to Claude" rule.
 * ``gemini``    — Google GenAI, uses ``GOOGLE_API_KEY`` (GCP credits).
@@ -21,6 +23,7 @@ from typing import Any
 
 # Default Claude model when routing through OpenRouter (per project convention).
 DEFAULT_CLAUDE_MODEL = "anthropic/claude-opus-4.1"
+DEFAULT_ANTHROPIC_MODEL = "claude-opus-5"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
@@ -28,13 +31,16 @@ class LLMProvider(ABC):
     """Minimal chat interface every backend implements."""
 
     @abstractmethod
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False,
+                 schema: dict | None = None) -> str:
         """Return a single completion string.
 
         Args:
             system: System prompt.
             user: User message.
             json_mode: Hint that the caller expects a JSON object back.
+            schema: Optional JSON Schema for that object. Backends with
+                structured outputs enforce it; the others ignore it.
 
         Returns:
             The model's text response.
@@ -51,7 +57,8 @@ class MockProvider(LLMProvider):
     the mock's prose.
     """
 
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False,
+                 schema: dict | None = None) -> str:
         text = user.lower()
         if json_mode:
             intent = self._classify(text)
@@ -81,6 +88,41 @@ class MockProvider(LLMProvider):
         return "off_topic"
 
 
+class AnthropicProvider(LLMProvider):
+    """Claude through the Anthropic Python SDK.
+
+    Routing is a short classification, so effort is ``low``. Server-side
+    fallbacks re-run a safety-declined request on another model. A refusal that
+    survives them hands the member to a human instead of guessing an intent.
+    """
+
+    _REFUSED = json.dumps({"intent": "escalation", "crisis": False})
+
+    def __init__(self, model: str | None = None) -> None:
+        import anthropic  # local import keeps mock path dependency-free
+
+        self.model = model or os.getenv("LLM_MODEL", DEFAULT_ANTHROPIC_MODEL)
+        self.client = anthropic.Anthropic()
+
+    def complete(self, system: str, user: str, *, json_mode: bool = False,
+                 schema: dict | None = None) -> str:
+        output_config: dict[str, Any] = {"effort": "low"}
+        if schema:
+            output_config["format"] = {"type": "json_schema", "schema": schema}
+        resp = self.client.beta.messages.create(
+            model=self.model,
+            max_tokens=2048,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            output_config=output_config,
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+        )
+        if resp.stop_reason == "refusal":
+            return self._REFUSED
+        return next(b.text for b in resp.content if b.type == "text")
+
+
 class OpenRouterProvider(LLMProvider):
     """OpenRouter backend (reaches Claude, GPT, Gemini via one API)."""
 
@@ -88,7 +130,8 @@ class OpenRouterProvider(LLMProvider):
         self.model = model or os.getenv("LLM_MODEL", DEFAULT_CLAUDE_MODEL)
         self.api_key = os.environ["OPENROUTER_API_KEY"]
 
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False,
+                 schema: dict | None = None) -> str:
         import httpx  # local import keeps mock path dependency-free
 
         payload: dict[str, Any] = {
@@ -118,7 +161,8 @@ class GeminiProvider(LLMProvider):
         self.model = model or os.getenv("LLM_MODEL", DEFAULT_GEMINI_MODEL)
         self.api_key = os.environ["GOOGLE_API_KEY"]
 
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    def complete(self, system: str, user: str, *, json_mode: bool = False,
+                 schema: dict | None = None) -> str:
         import httpx
 
         url = (
@@ -153,8 +197,10 @@ def get_provider() -> LLMProvider:
     name = os.getenv("LLM_PROVIDER", "mock").lower()
     if name == "mock":
         return MockProvider()
+    if name == "anthropic":
+        return AnthropicProvider()
     if name == "openrouter":
         return OpenRouterProvider()
     if name == "gemini":
         return GeminiProvider()
-    raise ValueError(f"Unknown LLM_PROVIDER: {name!r} (expected mock|openrouter|gemini)")
+    raise ValueError(f"Unknown LLM_PROVIDER: {name!r} (expected mock|anthropic|openrouter|gemini)")

@@ -33,6 +33,16 @@ _ROUTER_SYSTEM = (
     "me' are not a crisis. Return only the JSON object."
 )
 
+_ROUTER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "intent": {"type": "string", "enum": [i.value for i in Intent]},
+        "crisis": {"type": "boolean"},
+    },
+    "required": ["intent", "crisis"],
+    "additionalProperties": False,
+}
+
 
 # Offer the agent made last turn → the intent that accepting it maps to.
 _OFFER_INTENTS = {
@@ -124,7 +134,7 @@ def route(state: AgentState, provider: LLMProvider) -> AgentState:
 
 def _classify(text: str, provider: LLMProvider) -> tuple[Intent, bool]:
     """Ask the LLM for an intent and crisis flag; off-topic, no crisis on bad output."""
-    raw = provider.complete(_ROUTER_SYSTEM, text, json_mode=True)
+    raw = provider.complete(_ROUTER_SYSTEM, text, json_mode=True, schema=_ROUTER_SCHEMA)
     try:
         parsed = json.loads(raw)
         return Intent(parsed.get("intent", "off_topic")), parsed.get("crisis") is True

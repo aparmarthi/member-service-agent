@@ -1,10 +1,45 @@
 # Bolt prompt: PBM Member Agent console
 
-Paste everything below the line into Bolt. Attach `docs/openapi.json` too if Bolt accepts files.
+Paste everything below the line into Bolt. Attach `docs/openapi.json` too if Bolt accepts files. Export the result into `web/` at the repo root. `docker compose --profile web up` and CI both expect it there.
 
 ---
 
-Build a **Next.js 14+ (App Router) + TypeScript + Tailwind + shadcn/ui** frontend for an existing FastAPI backend: a pharmacy-benefits member-service AI agent. The backend owns all business logic. The frontend is a client: it renders what the API returns and never re-derives order status, eligibility, prices, authentication, or crisis detection.
+Build a **Next.js 14+ (App Router) + React + TypeScript + Tailwind + shadcn/ui** frontend for an existing FastAPI backend: a pharmacy-benefits member-service AI agent. The backend owns all business logic and all storage (PostgreSQL). The frontend is a client: it renders what the API returns and never re-derives order status, eligibility, prices, authentication, or crisis detection.
+
+## Stack and delivery
+
+The system stack is Python + FastAPI + Pydantic + PostgreSQL behind the API, TypeScript + React + Next.js in front, Docker, and AWS. Build only the frontend, within these constraints:
+
+- TypeScript with `"strict": true`. No `any` in `lib/api.ts`.
+- npm, with a committed `package-lock.json`. Scripts: `dev`, `build`, `start`, `lint`, and `typecheck` (`tsc --noEmit`). CI runs `npm ci && npm run lint && npm run typecheck && npm run build`.
+- Data fetching uses plain `fetch` in client components, from the typed client below. Don't add a state-management library, an ORM, or a backend-for-frontend.
+- Set `output: "standalone"` in `next.config` and include this `Dockerfile` in the app root:
+
+```dockerfile
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+- Deployment target is AWS. The same image runs on ECS Fargate or App Runner, alongside the API. `NEXT_PUBLIC_API_URL` is inlined at build time, so pass it as a build arg per environment.
 
 ## Configuration
 
@@ -15,7 +50,7 @@ Build a **Next.js 14+ (App Router) + TypeScript + Tailwind + shadcn/ui** fronten
 ## API contract
 
 ```
-GET  /health                          -> { status: "ok", provider: string }
+GET  /health                          -> { status: "ok", provider: string, storage: "postgres" | "memory" }
 GET  /scenarios                       -> ScenarioInfo[]
 POST /sessions                        body { scenario?: string, channel?: "chat"|"voice", verified?: boolean }
                                       -> 201 SessionCreated   (422 unknown scenario)
@@ -99,7 +134,7 @@ Desktop layout is three columns (left sidebar, chat, decision inspector); on mob
 - **Handoff state.** If `escalated`, show a system message "Connecting you with a Member Support Specialist…" and disable the input. Offer a "Start new conversation" button.
 - **Pending auth.** If `handoff_target === "pending_auth"`, show a lock icon and the hint "Verifying identity" by the input.
 - In Voice mode, show a "Voice simulation" label. Add an optional speaker toggle that reads agent replies aloud with the browser `speechSynthesis` API.
-- If the API returns 404 for a session (the backend restarted), show "Session expired" with a restart button.
+- If the API returns 404 for a session, show "Session expired" with a restart button. With Postgres, sessions survive API restarts, so this is rare. In memory mode it happens on every restart.
 - Show a typing indicator while a request is in flight.
 
 **Right: decision inspector**
@@ -126,7 +161,7 @@ Header caption: "The LLM picks the intent; deterministic code decides every fact
 - A provider badge (e.g. "mock") with the tooltip "Mock runs use a keyword router; routing and holdout crisis recall need a live-model run."
 
 ### Global
-- Top nav links to "Console" and "Evals". A persistent "Synthetic data · no PHI" badge. A health dot from `GET /health` showing the provider name.
+- Top nav links to "Console" and "Evals". A persistent "Synthetic data · no PHI" badge. A health dot from `GET /health` showing the provider and storage (e.g. "mock · postgres").
 - Clean, clinical, trustworthy look: neutral palette, one accent color, generous whitespace, light and dark mode.
 - Accessible: keyboard navigable, visible focus states, aria-live on new agent messages.
 
@@ -186,5 +221,5 @@ Use these exact shapes. In mock mode, `POST /messages` cycles through a short ca
 
 ## Don'ts
 - No client-side crisis detection, status mapping, or price math. Display only what the API returned.
-- No auth library, no database, no server actions calling Python. This app talks only to `NEXT_PUBLIC_API_URL`.
+- No auth library, no database client, no server actions calling Python. Postgres sits behind the API, and this app talks only to `NEXT_PUBLIC_API_URL`.
 - Don't log or persist message text in localStorage; keep only `session_id` in memory.

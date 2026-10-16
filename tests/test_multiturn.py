@@ -107,7 +107,7 @@ def test_singular_pagination_copy():
 class _CrisisAwareLLM:
     """Stands in for a live model that catches phrasing the lexicon misses."""
 
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    def complete(self, system: str, user: str, **_: object) -> str:
         if "disappear forever" in user:
             return '{"intent": "off_topic", "crisis": true}'
         return '{"intent": "order_status", "crisis": false}'

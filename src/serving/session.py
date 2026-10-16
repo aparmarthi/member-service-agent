@@ -1,12 +1,12 @@
-"""Multi-turn session wrapper shared by the CLI, API, Streamlit demo, and evals.
+"""Multi-turn session wrapper shared by the CLI, API, demo script, and evals.
 
-One compiled graph with an in-memory checkpointer serves every session; each
-session is a ``thread_id``. State (pending offers, pagination, auth progress)
-survives between turns, which is what makes "yes, show me the rest" and
-token → DOB authentication work.
+One compiled graph with a checkpointer serves every session; each session is a
+``thread_id``. State (pending offers, pagination, auth progress) survives
+between turns, which is what makes "yes, show me the rest" and token → DOB
+authentication work.
 
-``MemorySaver`` keeps every thread in process memory — fine for a demo. A
-deployment would swap in a persistent saver (e.g. Postgres) with a TTL.
+The checkpointer is Postgres when ``DATABASE_URL`` is set (see ``store.py``)
+and ``MemorySaver`` otherwise.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from __future__ import annotations
 from functools import lru_cache
 from uuid import uuid4
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
@@ -21,6 +22,7 @@ from src.config.channels import for_channel
 from src.data import synthetic
 from src.graph.build import build_graph
 from src.models.schemas import AgentTurnResult, Channel, Intent
+from src.serving import store
 from src.utils.llm import LLMProvider
 
 
@@ -32,8 +34,9 @@ _CHECKPOINT_TYPES = [
 ] + [("src.config.auth", name) for name in ("AuthState", "AuthLevel", "CallerType")]
 
 
-def _saver() -> MemorySaver:
-    return MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_TYPES))
+def _saver() -> BaseCheckpointSaver:
+    serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_TYPES)
+    return store.checkpointer(serde) if store.enabled() else MemorySaver(serde=serde)
 
 
 @lru_cache(maxsize=1)
@@ -51,6 +54,7 @@ class AgentSession:
         verified: Whether the session starts authenticated (chat behind a web
             login). ``False`` exercises step-up auth (token → DOB).
         provider: Optional LLM override; builds a dedicated graph when given.
+        thread_id: Resume an existing checkpointed thread instead of starting one.
     """
 
     def __init__(
@@ -59,12 +63,13 @@ class AgentSession:
         channel: Channel = Channel.CHAT,
         verified: bool = True,
         provider: LLMProvider | None = None,
+        thread_id: str | None = None,
     ) -> None:
         self.scenario = scenario
         self.member = synthetic.build(scenario)
         self.channel = channel
         self.verified = verified
-        self.thread_id = uuid4().hex
+        self.thread_id = thread_id or uuid4().hex
         self.turns: list[tuple[str, AgentTurnResult]] = []
         self._graph = (build_graph(provider, checkpointer=_saver())
                        if provider else default_graph())

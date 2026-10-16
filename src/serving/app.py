@@ -1,7 +1,7 @@
 """FastAPI service — the agent behind a session-based HTTP API.
 
 Endpoints:
-    GET  /health                         liveness + active LLM provider
+    GET  /health                         liveness + active LLM provider and storage
     GET  /scenarios                      synthetic member scenarios (+ test credentials)
     POST /sessions                       start a conversation → session_id
     GET  /sessions/{session_id}          session config + transcript
@@ -16,14 +16,16 @@ default is safe only because every member here is synthetic.
 Run:
     uvicorn src.serving.app:app --reload --port 8000
 
-Sessions live in process memory (see ``session.py``); a deployment would back
-them with a persistent checkpointer and expire idle threads.
+With ``DATABASE_URL`` set, sessions, checkpoints and a per-turn audit log are
+written to Postgres (``store.py``), so a session survives an API restart.
+Without it they live in process memory.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -32,9 +34,10 @@ from pydantic import BaseModel, Field
 
 from src.data import synthetic
 from src.models.schemas import AgentTurnResult, Channel
+from src.serving import store
 from src.serving.session import AgentSession
 
-app = FastAPI(title="PBM Member Agent", version="0.3.0")
+app = FastAPI(title="PBM Member Agent", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
@@ -50,6 +53,7 @@ class HealthResponse(BaseModel):
 
     status: str
     provider: str
+    storage: str = Field(description='"postgres" when DATABASE_URL is set, else "memory".')
 
 
 class ScenarioInfo(BaseModel):
@@ -117,7 +121,8 @@ class MessageIn(BaseModel):
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Liveness check."""
-    return HealthResponse(status="ok", provider=os.getenv("LLM_PROVIDER", "mock"))
+    return HealthResponse(status="ok", provider=os.getenv("LLM_PROVIDER", "mock"),
+                          storage="postgres" if store.enabled() else "memory")
 
 
 @app.get("/scenarios", response_model=list[ScenarioInfo])
@@ -141,14 +146,31 @@ def create_session(body: SessionCreate) -> SessionCreated:
         raise HTTPException(status_code=422, detail=f"Unknown scenario {body.scenario!r}")
     session = AgentSession(body.scenario, body.channel, verified=body.verified)
     _sessions[session.thread_id] = session
+    if store.enabled():
+        store.save_session(session.thread_id, body.scenario, body.channel.value, body.verified)
     return SessionCreated(session_id=session.thread_id, scenario=body.scenario,
                           channel=body.channel, verified=body.verified)
 
 
 def _session(session_id: str) -> AgentSession:
     session = _sessions.get(session_id)
+    if session is None and store.enabled():
+        session = _rehydrate(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Unknown session")
+    return session
+
+
+def _rehydrate(session_id: str) -> AgentSession | None:
+    """Rebuild a session from Postgres (e.g. after an API restart)."""
+    saved = store.load_session(session_id)
+    if saved is None:
+        return None
+    row, turns = saved
+    session = AgentSession(row["scenario"], Channel(row["channel"]), verified=row["verified"],
+                           thread_id=session_id)
+    session.turns = turns
+    _sessions[session_id] = session
     return session
 
 
@@ -164,7 +186,13 @@ def get_session(session_id: str) -> SessionDetail:
 @app.post("/sessions/{session_id}/messages", response_model=AgentTurnResult)
 def send_message(session_id: str, body: MessageIn) -> AgentTurnResult:
     """Send one member turn and return the agent's reply and decisions."""
-    return _session(session_id).send(body.text)
+    session = _session(session_id)
+    start = time.perf_counter()
+    turn = session.send(body.text)
+    if store.enabled():
+        store.record_turn(session_id, len(session.turns) - 1, body.text, turn,
+                          (time.perf_counter() - start) * 1000)
+    return turn
 
 
 def _eval_runs() -> list[dict]:

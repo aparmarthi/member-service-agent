@@ -122,3 +122,32 @@ thoughts?") can trigger 988. The held-out false-alarm rate is 0.095, inside
 the 0.10 bar. Mid-auth turns get the lexicon only (ADR-009). The held-out set
 must never be tuned against; when it has been looked at too often, write a
 new one.
+
+## ADR-013: Standard FDE stack: FastAPI + Postgres + Next.js, Docker, AWS
+**Decision:** The stack is Python + FastAPI + Pydantic for the backend,
+TypeScript + React (Next.js) for the frontend, PostgreSQL as the system of
+record, Docker for packaging, AWS for deployment, and pytest + GitHub Actions
+for delivery.
+- With `DATABASE_URL` set, Postgres holds three things:
+  - LangGraph checkpoints (`PostgresSaver`)
+  - a `sessions` table
+  - a per-turn `turns` audit log with decision columns
+- Without it, everything stays in memory.
+- Claude is called through the official Anthropic SDK (`LLM_PROVIDER=anthropic`). The router's intent schema is enforced with structured outputs.
+- The Streamlit demo is removed. The UI is a separate Next.js app (docs/BOLT_PROMPT.md) that talks only to the API.
+
+**Why:** This is the stack forward-deployed teams most often meet in customer environments, and each piece earns its place:
+- **Postgres.** Workflow state and audit history are relational, and they have to survive restarts. A session now resumes mid-auth or mid-pagination after the API restarts. Escalation and containment become SQL queries instead of log scraping.
+- **Next.js.** It puts the UI on the same contract a customer's own frontend team would build against (`/openapi.json`).
+- **Structured outputs.** They remove the "model returned prose" failure from the one decision the LLM owns.
+
+**Deferred until the workload asks for them:**
+- **pgvector:** the compose and CI image already ship it, but there's no retrieval yet. It's the path for benefit-inquiry RAG and avoids a separate vector DB.
+- **S3:** no file inputs yet. Prescription images and benefit PDFs would go here.
+- **Redis, queues and workers:** turns are synchronous and around 1 ms of orchestration on mock. Add them for outbound refill reminders or batch evals.
+- **pandas/Polars:** the audit analytics fit in SQL.
+
+**Trade-offs:**
+- The API still caches live sessions in process memory. Postgres is the source of truth; the cache is only a fast path.
+- Horizontal scaling works because any replica can rehydrate a session from Postgres. Two replicas writing the same session at once isn't guarded, so use sticky sessions or a per-thread lock if that matters.
+- Checkpoints and `turns.user_text` hold conversation content, which is PHI with real members. That means encryption at rest (RDS + KMS) and a retention window. Neither is implemented, because all data here is synthetic.

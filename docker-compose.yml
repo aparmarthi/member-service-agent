@@ -1,14 +1,36 @@
+# docker compose up                  -> API on :8000 + Postgres on :5432
+# docker compose --profile web up    -> also the Next.js console on :3000 (needs ./web)
 services:
+  db:
+    image: pgvector/pgvector:pg16      # plain Postgres today; pgvector ready for benefit-doc RAG
+    environment:
+      POSTGRES_USER: pbm
+      POSTGRES_PASSWORD: pbm           # local-only; on AWS this comes from Secrets Manager
+      POSTGRES_DB: pbm
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pbm -d pbm"]
+      interval: 2s
+      retries: 15
+
   api:
     build: .
     ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: postgresql://pbm:pbm@db:5432/pbm
+      CORS_ORIGINS: http://localhost:3000
     env_file: [{ path: .env, required: false }]
+    depends_on:
+      db: { condition: service_healthy }
 
-  dashboard:
-    build: .
-    command: ["streamlit", "run", "src/serving/dashboard.py",
-              "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
-    ports: ["8501:8501"]
-    env_file: [{ path: .env, required: false }]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+  web:
+    profiles: [web]
+    build: ./web
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on: [api]
+
+volumes:
+  pgdata:

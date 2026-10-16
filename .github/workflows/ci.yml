@@ -1,0 +1,70 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: pbm
+          POSTGRES_PASSWORD: pbm
+          POSTGRES_DB: pbm
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pbm -d pbm"
+          --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://pbm:pbm@localhost:5432/pbm
+      LLM_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Full suite against Postgres, including tests/test_store.py.
+      - run: pytest -q
+      # Mock-provider evals have known threshold FAILs (keyword router, holdout
+      # crisis recall), so they're reported, not gated. The ship gate is a
+      # live-model run; see evals/README.md.
+      - name: evals (mock, report only)
+        run: python -m evals.run --no-save
+        continue-on-error: true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t pbm-member-agent .
+      - name: smoke test
+        run: |
+          docker run -d -p 8000:8000 --name api pbm-member-agent
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && exit 0; sleep 1; done
+          docker logs api; exit 1
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      # Skips cleanly until the Next.js app is exported into web/.
+      - id: present
+        working-directory: .
+        run: echo "yes=$([ -f web/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.present.outputs.yes == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - if: steps.present.outputs.yes == 'true'
+        run: npm ci && npm run lint && npm run typecheck && npm run build

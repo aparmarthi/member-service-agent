@@ -56,21 +56,32 @@ python -m scripts.demo
 python -m src.serving.cli --scenario family_plan --channel chat
 python -m src.serving.cli --scenario single_patient_mixed_statuses --channel voice --unverified
 
-# API  ->  http://localhost:8000/docs
+# API  ->  http://localhost:8000/docs   (in-memory sessions unless DATABASE_URL is set)
 uvicorn src.serving.app:app --reload --port 8000
 
-# Streamlit demo (pick scenario, channel, verified/unverified)
-streamlit run src/serving/dashboard.py
-
-# Docker (API on :8000, dashboard on :8501)
-docker-compose up --build
+# Docker: API on :8000 + Postgres (sessions, checkpoints, turn audit log)
+docker compose up --build
+# ...plus the Next.js console on :3000, once it's exported into web/
+docker compose --profile web up --build
 
 # Tests (hermetic, no API keys) and evals (scorecard, saved to evals/results/)
 pytest -q
 python -m evals.run
 ```
 
-Frontend: the API is the contract (`/openapi.json`, also exported to [docs/openapi.json](docs/openapi.json)), and CORS is on (`CORS_ORIGINS`, default `*` because all data is synthetic). [docs/BOLT_PROMPT.md](docs/BOLT_PROMPT.md) specs a Next.js console and eval dashboard against it, with a mock mode for builders that can't reach the API.
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Backend | Python, FastAPI, Pydantic, LangGraph |
+| Frontend | TypeScript, React, Next.js (`web/`, specced in [docs/BOLT_PROMPT.md](docs/BOLT_PROMPT.md)) |
+| Database | PostgreSQL: LangGraph checkpoints, `sessions`, `turns` audit log ([store.py](src/serving/store.py)) |
+| AI | Anthropic Python SDK with structured outputs; mock provider for hermetic tests |
+| Delivery | Docker, pytest, GitHub Actions (tests against a Postgres service, image build + smoke test) |
+| Cloud | AWS: ECR, ECS Fargate, RDS PostgreSQL, Secrets Manager ([docs/DEPLOY.md](docs/DEPLOY.md)) |
+| Deferred | pgvector (benefit-doc RAG), S3, Redis/queues: added when the workload needs them (ADR-013) |
+
+Frontend: the API is the contract (`/openapi.json`, also exported to [docs/openapi.json](docs/openapi.json)), and CORS is on (`CORS_ORIGINS`, default `*` because all data is synthetic). The Next.js console and eval dashboard have a mock mode for builders that can't reach the API.
 
 API sketch:
 
@@ -86,6 +97,9 @@ curl -s -X POST localhost:8000/sessions/$SID/messages -H 'content-type: applicat
 Pluggable provider, selected by env var (see `.env.example`):
 
 ```bash
+export LLM_PROVIDER=anthropic    # Claude via the Anthropic SDK (default model claude-opus-5)
+export ANTHROPIC_API_KEY=sk-ant-...
+# or
 export LLM_PROVIDER=openrouter   # routes to Claude by default
 export OPENROUTER_API_KEY=sk-or-...
 # or
@@ -134,8 +148,8 @@ Both **chat and voice** run on the one graph, diverging by config.
 - **Stubbed (real interfaces):** in-conversation order-action *execution*
   (payment-hold resolve, cancel, address). Chat deep-links today; voice
   inline execution with confirmation is the next pass.
-- **Sessions** are in-process (`MemorySaver`). A deployment would use a durable
-  checkpointer with idle expiry.
-- **Tests:** 57 passing, hermetic (mock LLM, no keys).
+- **Sessions** persist in Postgres when `DATABASE_URL` is set, and survive API
+  restarts. Idle expiry and retention aren't implemented yet.
+- **Tests:** 63 hermetic (mock LLM, no keys) plus 3 Postgres tests that run in CI.
 
 See [docs/PRD.md](docs/PRD.md) and [docs/decisions.md](docs/decisions.md).

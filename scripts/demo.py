@@ -100,7 +100,7 @@ def main() -> None:
         print(f"  -> {point}")
         run_act(scenario, channel, verified, utterances)
     print(f"\n{'=' * 78}\nDone. Tests: pytest -q  ·  Evals: python -m evals.run  ·  "
-          f"UI: streamlit run src/serving/dashboard.py\n")
+          f"API: uvicorn src.serving.app:app --port 8000\n")
 
 
 if __name__ == "__main__":
