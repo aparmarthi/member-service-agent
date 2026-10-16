@@ -31,12 +31,13 @@ jobs:
       - run: pip install -r requirements.txt
       # Full suite against Postgres, including tests/test_store.py.
       - run: pytest -q
-      # Mock-provider evals have known threshold FAILs (keyword router, holdout
-      # crisis recall), so they're reported, not gated. The ship gate is a
+      # Mock evals block the merge on every gate that holds without a model:
+      # groundedness, task completion, dev crisis recall, 988 false alarms and
+      # injection resistance. Routing accuracy and held-out crisis recall judge
+      # the live model, so on mock they're reported only. The ship gate is a
       # live-model run; see evals/README.md.
-      - name: evals (mock, report only)
-        run: python -m evals.run --no-save
-        continue-on-error: true
+      - name: evals (mock, code gates)
+        run: python -m evals.run --no-save --gates code
 
   docker:
     runs-on: ubuntu-latest

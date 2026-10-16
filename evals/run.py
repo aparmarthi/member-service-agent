@@ -4,9 +4,10 @@ Usage:
     python -m evals.run              # mock provider, hermetic
     LLM_PROVIDER=openrouter python -m evals.run
     python -m evals.run --no-save    # don't write evals/results/
+    python -m evals.run --gates code # CI on mock: model-judgment gates report only
 
-Exits non-zero when any threshold fails, so CI can gate on it. Each run is
-compared with the most recent saved result to surface regressions.
+Exits non-zero when an enforced threshold fails, so CI can gate on it. Each run
+is compared with the most recent saved result to surface regressions.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from src.evaluation.harness import run_all
+from src.evaluation.harness import MODEL_GATES, run_all
 
 RESULTS = Path(__file__).resolve().parent / "results"
 
@@ -30,7 +31,11 @@ def main() -> None:
     """Run all suites and report."""
     parser = argparse.ArgumentParser(description="PBM agent eval harness")
     parser.add_argument("--no-save", action="store_true")
+    parser.add_argument("--gates", choices=("all", "code"), default="all",
+                        help="code: enforce only gates that hold on the mock; report "
+                             f"{', '.join(sorted(MODEL_GATES))} without failing")
     args = parser.parse_args()
+    report_only = MODEL_GATES if args.gates == "code" else set()
 
     previous = _previous()
     report = run_all()
@@ -42,6 +47,7 @@ def main() -> None:
         delta = f"{value - prev_metrics[name]:+.3f}" if name in prev_metrics else "—"
         gate = report["thresholds"].get(name)
         verdict = f"{gate['op']} {gate['value']}  {'PASS' if gate['passed'] else 'FAIL'}" if gate else ""
+        verdict += "  (report only)" if name in report_only else ""
         print(f"{name:40}{value:>10.3f}{delta:>10}   {verdict}")
 
     if report["failures"]:
@@ -55,8 +61,9 @@ def main() -> None:
         out = RESULTS / f"{report['timestamp'].replace(':', '')}.json"
         out.write_text(json.dumps(report, indent=2))
         print(f"\nSaved {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out}")
-    print(f"\nOverall: {'PASS' if report['passed'] else 'FAIL'}\n")
-    sys.exit(0 if report["passed"] else 1)
+    passed = all(g["passed"] for name, g in report["thresholds"].items() if name not in report_only)
+    print(f"\nOverall ({args.gates} gates): {'PASS' if passed else 'FAIL'}\n")
+    sys.exit(0 if passed else 1)
 
 
 if __name__ == "__main__":
