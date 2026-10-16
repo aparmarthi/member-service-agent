@@ -34,7 +34,7 @@ correctly from grounded system data without unnecessary escalation.
 - Crisis-safe escalation with 988 + human handoff, including mid-authentication.
 - Serving: FastAPI (sessions, transcript, eval endpoints), Postgres persistence
   (checkpoints, sessions, turn audit log), Dockerfile + compose, GitHub Actions CI.
-  Next.js console specced in `docs/BOLT_PROMPT.md`; AWS layout in `docs/DEPLOY.md`.
+  Next.js operator console + eval dashboard in `web/`; AWS layout in `docs/DEPLOY.md`.
 - Eval harness (`evals/`) for every metric above, with timestamped results.
 - Stubs (real interfaces): order-action execution (deep-link only).
 

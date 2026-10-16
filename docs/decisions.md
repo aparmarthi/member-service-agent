@@ -134,7 +134,7 @@ for delivery.
   - a per-turn `turns` audit log with decision columns
 - Without it, everything stays in memory.
 - Claude is called through the official Anthropic SDK (`LLM_PROVIDER=anthropic`). The router's intent schema is enforced with structured outputs.
-- The Streamlit demo is removed. The UI is a separate Next.js app (docs/BOLT_PROMPT.md) that talks only to the API.
+- The Streamlit demo is removed. The UI is a separate Next.js app (`web/`) that talks only to the API.
 
 **Why:** This is the stack forward-deployed teams most often meet in customer environments, and each piece earns its place:
 - **Postgres.** Workflow state and audit history are relational, and they have to survive restarts. A session now resumes mid-auth or mid-pagination after the API restarts. Escalation and containment become SQL queries instead of log scraping.

@@ -1,5 +1,5 @@
 # docker compose up                  -> API on :8000 + Postgres on :5432
-# docker compose --profile web up    -> also the Next.js console on :3000 (needs ./web)
+# docker compose --profile web up    -> also the Next.js console on :3000
 services:
   db:
     image: pgvector/pgvector:pg16      # plain Postgres today; pgvector ready for benefit-doc RAG
@@ -26,10 +26,11 @@ services:
 
   web:
     profiles: [web]
-    build: ./web
+    build:
+      context: ./web
+      args:   # inlined into the browser bundle at build time, so a build arg, not runtime env
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     ports: ["3000:3000"]
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on: [api]
 
 volumes:

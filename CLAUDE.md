@@ -5,7 +5,7 @@ This repo follows the FDE default stack. It overrides the global "Streamlit for 
 | Layer | Use | Notes |
 |---|---|---|
 | Backend | Python, FastAPI, Pydantic, LangGraph | All business logic lives here. |
-| Frontend | TypeScript, React, Next.js in `web/` | A client of the API only. Spec: docs/BOLT_PROMPT.md. No Streamlit. |
+| Frontend | TypeScript, React, Next.js in `web/` | A client of the API only; `web/lib/types.ts` mirrors the contract. UX spec: docs/BOLT_PROMPT.md. No Streamlit. |
 | Database | PostgreSQL via psycopg 3 (`src/serving/store.py`) | Workflow state (LangGraph `PostgresSaver`), sessions, turn audit log. |
 | Vector search | pgvector, in the same Postgres | Only when retrieval exists. No separate vector DB. |
 | Files | S3 | Only when there are file inputs. |
@@ -28,5 +28,7 @@ pytest -q
 python -m evals.run            # LLM_PROVIDER=anthropic for the live ship gate
 python -m scripts.demo
 uvicorn src.serving.app:app --reload --port 8000
-docker compose up --build      # + --profile web once web/ exists
+docker compose up --build      # + --profile web for the console on :3000
+cd web && npm run dev          # console against a local API
+cd web && npm run lint && npm run typecheck && npm run build
 ```

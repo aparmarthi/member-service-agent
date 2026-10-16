@@ -61,8 +61,10 @@ uvicorn src.serving.app:app --reload --port 8000
 
 # Docker: API on :8000 + Postgres (sessions, checkpoints, turn audit log)
 docker compose up --build
-# ...plus the Next.js console on :3000, once it's exported into web/
+# ...plus the Next.js console + eval dashboard on :3000
 docker compose --profile web up --build
+# or run the web app locally against the API above (see web/README.md)
+cd web && npm install && npm run dev
 
 # Tests (hermetic, no API keys) and evals (scorecard, saved to evals/results/)
 pytest -q
@@ -74,14 +76,14 @@ python -m evals.run
 | Layer | Choice |
 |---|---|
 | Backend | Python, FastAPI, Pydantic, LangGraph |
-| Frontend | TypeScript, React, Next.js (`web/`, specced in [docs/BOLT_PROMPT.md](docs/BOLT_PROMPT.md)) |
+| Frontend | TypeScript, React, Next.js, Tailwind ([web/](web/README.md)): operator console + eval dashboard |
 | Database | PostgreSQL: LangGraph checkpoints, `sessions`, `turns` audit log ([store.py](src/serving/store.py)) |
 | AI | Anthropic Python SDK with structured outputs; mock provider for hermetic tests |
 | Delivery | Docker, pytest, GitHub Actions (tests against a Postgres service, image build + smoke test) |
 | Cloud | AWS: ECR, ECS Fargate, RDS PostgreSQL, Secrets Manager ([docs/DEPLOY.md](docs/DEPLOY.md)) |
 | Deferred | pgvector (benefit-doc RAG), S3, Redis/queues: added when the workload needs them (ADR-013) |
 
-Frontend: the API is the contract (`/openapi.json`, also exported to [docs/openapi.json](docs/openapi.json)), and CORS is on (`CORS_ORIGINS`, default `*` because all data is synthetic). The Next.js console and eval dashboard have a mock mode for builders that can't reach the API.
+Frontend: the API is the contract (`/openapi.json`, also exported to [docs/openapi.json](docs/openapi.json)), mirrored by hand in [web/lib/types.ts](web/lib/types.ts). CORS is on (`CORS_ORIGINS`, default `*` because all data is synthetic). The console renders structured `shown` orders as cards and `offer` as quick replies. Its decision inspector shows each turn's intent, escalation, handoff, crisis and offer, so you can see the LLM/code split live.
 
 API sketch:
 
