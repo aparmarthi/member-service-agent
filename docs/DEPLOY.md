@@ -15,7 +15,7 @@ gcloud run deploy member-service-api --source . --region us-central1 \
 
 - The console deploys from GitHub on every push to `main`. The Vercel environment sets `NEXT_PUBLIC_API_URL=/api` and `API_ORIGIN=<Cloud Run URL>`.
 - DNS: a `CNAME` for `member` pointing at Vercel's target, set at the registrar.
-- The API isn't redeployed by CI. Re-run the command above after backend changes.
+- CI's `deploy-api` job redeploys the API on every push to `main` once the test, docker and web jobs pass. It signs in through Workload Identity Federation as `github-member-deployer`, with no stored key. Env vars and secrets stay on the service, so the command above is only needed to change them or to create the service.
 
 ## Customer deployment: AWS
 
@@ -47,7 +47,7 @@ docker build -t $ECR/member-web:$GIT_SHA --build-arg NEXT_PUBLIC_API_URL=https:/
   && docker push $ECR/member-web:$GIT_SHA
 
 # 2. RDS: create a Postgres 16 instance in private subnets and store its URL in Secrets Manager
-#    as postgresql://USER:PASS@HOST:5432/pbm
+#    as postgresql://USER:PASS@HOST:5432/member
 
 # 3. ECS: one task definition per image (secrets from step 2), services behind one ALB
 #    (host-based routing: api.$DOMAIN -> api, $DOMAIN -> web)

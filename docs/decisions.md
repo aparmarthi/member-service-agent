@@ -253,3 +253,9 @@ At $0.056 per 1,000 turns (ADR-015), the daily cap is about $0.11. Counters rese
 **Trade-offs:**
 - The visitor plays the specialist on the approval card, with no staff login. That's acceptable only because every member is synthetic. A real deployment puts the approval endpoint behind staff SSO (ADR-014).
 - Turning on Postgres (`DATABASE_URL`) would let sessions survive restarts and allow more than one instance. The code already supports it.
+
+**Amendment (2026-10-16, continuous deploy):**
+- CI now redeploys the API. A `deploy-api` job runs on pushes to `main` after the test, docker and web jobs pass, then smoke-tests `/health`.
+- Sign-in is keyless. A Workload Identity Federation provider trusts only `aparmarthi/member-service-agent` on `refs/heads/main`. It maps to `github-member-deployer`, which has `run.sourceDeveloper` and can act as only the `member-service-run` account.
+- The console already deployed from Git on Vercel, so before this the console could ship a contract change before the API it calls.
+

@@ -12,15 +12,15 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: pbm
-          POSTGRES_PASSWORD: pbm
-          POSTGRES_DB: pbm
+          POSTGRES_USER: member
+          POSTGRES_PASSWORD: member
+          POSTGRES_DB: member
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U pbm -d pbm"
+          --health-cmd "pg_isready -U member -d member"
           --health-interval 2s --health-retries 15
     env:
-      DATABASE_URL: postgresql://pbm:pbm@localhost:5432/pbm
+      DATABASE_URL: postgresql://member:member@localhost:5432/member
       LLM_PROVIDER: mock
     steps:
       - uses: actions/checkout@v7
@@ -64,3 +64,31 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci && npm run lint && npm run typecheck && npm run build
       - run: docker build -t member-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 .
+
+  # Redeploys the public demo API (ADR-017) after every gate passes on main.
+  # Keyless: GitHub's OIDC token is exchanged through Workload Identity Federation
+  # for github-member-deployer, which only this repo's main branch can use.
+  # Env vars and secrets live on the Cloud Run service and carry over.
+  deploy-api:
+    needs: [test, docker, web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: deploy
+        run: |
+          gcloud run deploy member-service-api --source . --region us-central1 \
+            --project finsight-gpu --quiet
+      - name: smoke test
+        run: |
+          url=$(gcloud run services describe member-service-api --region us-central1 \
+            --project finsight-gpu --format 'value(status.url)')
+          curl -fsS --retry 5 --retry-delay 5 "$url/health"

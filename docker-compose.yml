@@ -4,13 +4,13 @@ services:
   db:
     image: pgvector/pgvector:pg16      # plain Postgres today; pgvector ready for benefit-doc RAG
     environment:
-      POSTGRES_USER: pbm
-      POSTGRES_PASSWORD: pbm           # local-only; on AWS this comes from Secrets Manager
-      POSTGRES_DB: pbm
+      POSTGRES_USER: member
+      POSTGRES_PASSWORD: member           # local-only; on AWS this comes from Secrets Manager
+      POSTGRES_DB: member
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pbm -d pbm"]
+      test: ["CMD-SHELL", "pg_isready -U member -d member"]
       interval: 2s
       retries: 15
 
@@ -18,7 +18,7 @@ services:
     build: .
     ports: ["8000:8000"]
     environment:
-      DATABASE_URL: postgresql://pbm:pbm@db:5432/pbm
+      DATABASE_URL: postgresql://member:member@db:5432/member
       CORS_ORIGINS: http://localhost:3000
     env_file: [{ path: .env, required: false }]
     depends_on:
