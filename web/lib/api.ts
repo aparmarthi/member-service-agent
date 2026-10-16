@@ -15,7 +15,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "content-type": "application/json" },
   });
-  if (!res.ok) throw new ApiError(res.status, `${init?.method ?? "GET"} ${path} failed (${res.status})`);
+  if (!res.ok) {
+    // Show the API's own message (e.g. the demo's turn limit) when it sends one.
+    const detail: unknown = await res.json().then((b) => b?.detail, () => null);
+    throw new ApiError(res.status, typeof detail === "string" ? detail : `${init?.method ?? "GET"} ${path} failed (${res.status})`);
+  }
   return res.json() as Promise<T>;
 }
 

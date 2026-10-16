@@ -1,0 +1,9 @@
+# Upload for `gcloud run deploy --source .`: the Dockerfile only needs src/,
+# evals/results/ and requirements-serve.txt. Secrets never leave the machine.
+.git/
+.github/
+web/
+docs/
+.env
+.env.*
+#!include:.gitignore

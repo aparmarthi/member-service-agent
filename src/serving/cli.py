@@ -20,7 +20,7 @@ from src.serving.session import AgentSession
 
 def main() -> None:
     """Run the interactive CLI."""
-    parser = argparse.ArgumentParser(description="PBM member agent CLI")
+    parser = argparse.ArgumentParser(description="Member Service Agent CLI")
     parser.add_argument("--scenario", default="single_patient_mixed_statuses",
                         choices=sorted(synthetic.SCENARIOS))
     parser.add_argument("--channel", default="chat", choices=[c.value for c in Channel])

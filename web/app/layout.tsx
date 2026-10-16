@@ -3,8 +3,8 @@ import Nav from "@/components/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PBM Member Agent",
-  description: "Operator console and eval dashboard for the PBM member-service agent",
+  title: "Member Service Agent",
+  description: "Operator console and eval dashboard for a pharmacy-benefits member service agent",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

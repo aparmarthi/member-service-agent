@@ -1,4 +1,4 @@
-# PRD: PBM Member-Service Agent (LangGraph)
+# PRD: Member Service Agent (pharmacy benefits, LangGraph)
 
 ## Problem
 Members contacting a pharmacy benefit manager want fast, accurate answers about

@@ -1,4 +1,23 @@
-# Deploying to AWS
+# Deploying
+
+## Live demo: Cloud Run + Vercel (ADR-017)
+
+`member.ameyparmarthi.com` → Vercel project `member-service-agent` (root `web/`), which proxies `/api/*` → Cloud Run `member-service-api` (us-central1).
+
+```bash
+# API: build with Cloud Build and deploy (.gcloudignore keeps .env and web/ out of the upload)
+gcloud run deploy member-service-api --source . --region us-central1 \
+  --service-account member-service-run@$PROJECT.iam.gserviceaccount.com \
+  --port 8000 --allow-unauthenticated --max-instances 1 --memory 1Gi \
+  --set-env-vars LLM_PROVIDER=openrouter,LLM_MODEL=anthropic/claude-haiku-5.5,CORS_ORIGINS=https://member.ameyparmarthi.com,SESSION_TURN_CAP=40,DAILY_TURN_CAP=2000,DAILY_SESSION_CAP=500 \
+  --set-secrets OPENROUTER_API_KEY=member-service-openrouter-api-key:latest
+```
+
+- The console deploys from GitHub on every push to `main`. The Vercel environment sets `NEXT_PUBLIC_API_URL=/api` and `API_ORIGIN=<Cloud Run URL>`.
+- DNS: a `CNAME` for `member` pointing at Vercel's target, set at the registrar.
+- The API isn't redeployed by CI. Re-run the command above after backend changes.
+
+## Customer deployment: AWS
 
 The target layout is two containers and one database. Both images are built in CI.
 
@@ -11,7 +30,7 @@ Route 53 ─► ALB ─┬─► ECS Fargate: web  (Next.js, :3000)
 
 | Piece | AWS service | Notes |
 |---|---|---|
-| Images | ECR | `pbm-api` from `./Dockerfile`; `pbm-web` from `web/Dockerfile` with `--build-arg NEXT_PUBLIC_API_URL=https://api.<domain>` |
+| Images | ECR | `member-api` from `./Dockerfile`; `member-web` from `web/Dockerfile` with `--build-arg NEXT_PUBLIC_API_URL=https://api.<domain>` |
 | Compute | ECS Fargate, one service per image | App Runner also works and needs less setup. Fargate is the default once you need VPC-private RDS and an ALB. |
 | Database | RDS for PostgreSQL 16 | Turn on encryption at rest (KMS). The app creates its tables on first connect. Add `CREATE EXTENSION vector` when RAG lands. |
 | Secrets | Secrets Manager → ECS task secrets | `DATABASE_URL`, `ANTHROPIC_API_KEY`. Never baked into images. |
@@ -23,9 +42,9 @@ Route 53 ─► ALB ─┬─► ECS Fargate: web  (Next.js, :3000)
 
 ```bash
 # 1. Push images (after `aws ecr get-login-password | docker login ...`)
-docker build -t $ECR/pbm-api:$GIT_SHA . && docker push $ECR/pbm-api:$GIT_SHA
-docker build -t $ECR/pbm-web:$GIT_SHA --build-arg NEXT_PUBLIC_API_URL=https://api.$DOMAIN web \
-  && docker push $ECR/pbm-web:$GIT_SHA
+docker build -t $ECR/member-api:$GIT_SHA . && docker push $ECR/member-api:$GIT_SHA
+docker build -t $ECR/member-web:$GIT_SHA --build-arg NEXT_PUBLIC_API_URL=https://api.$DOMAIN web \
+  && docker push $ECR/member-web:$GIT_SHA
 
 # 2. RDS: create a Postgres 16 instance in private subnets and store its URL in Secrets Manager
 #    as postgresql://USER:PASS@HOST:5432/pbm

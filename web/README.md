@@ -18,10 +18,10 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
-`NEXT_PUBLIC_API_URL` (default `http://localhost:8000`) is inlined at **build** time. In Docker, pass it as a build arg:
+`NEXT_PUBLIC_API_URL` (default `http://localhost:8000`) is inlined at **build** time. On Vercel it's `/api`, and `API_ORIGIN` (the Cloud Run URL) makes Next proxy `/api/*` to the API, so the browser only calls its own origin. In Docker, pass it as a build arg:
 
 ```bash
-docker build -t pbm-web --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
+docker build -t member-web --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
 ```
 
 ## Checks (same as CI)

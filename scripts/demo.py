@@ -1,4 +1,4 @@
-"""Scripted end-to-end demo of the PBM member agent.
+"""Scripted end-to-end demo of the Member Service Agent.
 
 Each act is one multi-turn conversation (one checkpointed session), chosen to
 show one design claim from the README. Every reply is printed with the state
@@ -89,7 +89,7 @@ def run_act(scenario: str, channel: Channel, verified: bool, utterances: list[st
 
 def main() -> None:
     """Run every demo act in order."""
-    parser = argparse.ArgumentParser(description="Scripted PBM agent demo")
+    parser = argparse.ArgumentParser(description="Scripted Member Service Agent demo")
     parser.add_argument("--pause", action="store_true", help="wait for Enter between acts")
     args = parser.parse_args()
 

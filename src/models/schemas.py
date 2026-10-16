@@ -1,6 +1,6 @@
 """Domain models and agent state schema.
 
-Data model mirrors the PBM order structure (schema only — no real member data):
+Data model mirrors a pharmacy-benefits order structure (schema only — no real member data):
 
     Member ──< Patient (family plan) ──< Order ──< Prescription
 

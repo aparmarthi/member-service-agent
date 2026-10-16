@@ -27,7 +27,7 @@ export default function Nav() {
   return (
     <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <nav className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
-        <span className="font-semibold">PBM Member Agent</span>
+        <span className="font-semibold">Member Service Agent</span>
         <div className="flex gap-1">
           {LINKS.map((l) => (
             <Link

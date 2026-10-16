@@ -43,10 +43,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t pbm-member-agent .
+      - run: docker build -t member-api .
       - name: smoke test
         run: |
-          docker run -d -p 8000:8000 --name api pbm-member-agent
+          docker run -d -p 8000:8000 --name api member-api
           for i in $(seq 1 30); do curl -sf localhost:8000/health && exit 0; sleep 1; done
           docker logs api; exit 1
 
@@ -63,4 +63,4 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci && npm run lint && npm run typecheck && npm run build
-      - run: docker build -t pbm-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 .
+      - run: docker build -t member-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 .

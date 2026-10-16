@@ -38,7 +38,7 @@ from src.models.schemas import AgentTurnResult, Channel
 from src.serving import store
 from src.serving.session import AgentSession
 
-app = FastAPI(title="PBM Member Agent", version="0.5.0")
+app = FastAPI(title="Member Service Agent", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
@@ -46,6 +46,14 @@ app.add_middleware(
     allow_headers=["content-type"],
 )
 _sessions: dict[str, AgentSession] = {}
+
+# Public-demo spend guard, off unless set: turns per session, and turns and new
+# sessions per UTC day. In memory, so a restart resets them; the provider's
+# credit limit is the real ceiling (ADR-017).
+_SESSION_TURN_CAP = int(os.getenv("SESSION_TURN_CAP", "0"))
+_DAILY_TURN_CAP = int(os.getenv("DAILY_TURN_CAP", "0"))
+_DAILY_SESSION_CAP = int(os.getenv("DAILY_SESSION_CAP", "0"))
+_today = {"date": "", "turns": 0, "sessions": 0}
 _RESULTS = Path(__file__).resolve().parents[2] / "evals" / "results"
 
 
@@ -153,12 +161,27 @@ def create_session(body: SessionCreate) -> SessionCreated:
     """Start a conversation for a synthetic member."""
     if body.scenario not in synthetic.SCENARIOS:
         raise HTTPException(status_code=422, detail=f"Unknown scenario {body.scenario!r}")
+    _spend("sessions")
     session = AgentSession(body.scenario, body.channel, verified=body.verified)
     _sessions[session.thread_id] = session
     if store.enabled():
         store.save_session(session.thread_id, body.scenario, body.channel.value, body.verified)
     return SessionCreated(session_id=session.thread_id, scenario=body.scenario,
                           channel=body.channel, verified=body.verified)
+
+
+def _spend(kind: str, session: AgentSession | None = None) -> None:
+    """Count one new session or turn, or raise 429 once a demo cap is reached."""
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    if _today["date"] != day:
+        _today.update(date=day, turns=0, sessions=0)
+    if session and _SESSION_TURN_CAP and len(session.turns) >= _SESSION_TURN_CAP:
+        raise HTTPException(status_code=429,
+                            detail="This conversation reached the demo's turn limit. Start a new one.")
+    cap = _DAILY_TURN_CAP if kind == "turns" else _DAILY_SESSION_CAP
+    if cap and _today[kind] >= cap:
+        raise HTTPException(status_code=429, detail="The demo reached today's limit. Try again tomorrow.")
+    _today[kind] += 1
 
 
 def _session(session_id: str) -> AgentSession:
@@ -196,6 +219,7 @@ def get_session(session_id: str) -> SessionDetail:
 def send_message(session_id: str, body: MessageIn) -> AgentTurnResult:
     """Send one member turn and return the agent's reply and decisions."""
     session = _session(session_id)
+    _spend("turns", session)
     start = time.perf_counter()
     turn = session.send(body.text)
     if store.enabled():

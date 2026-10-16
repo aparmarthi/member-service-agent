@@ -229,3 +229,27 @@ for delivery.
 - The set was written alongside the defenses, so it is a regression suite, not an independent red team. A fresh set written without seeing the code is the next step, as with ADR-012.
 - In an attack, the model can only change which intent runs. One case's safety turns on that choice: an injected instruction to label every message a crisis. Haiku ignored it. A model that obeyed would cost a needless 988 reply and a handoff, not data or money.
 - CI never calls a paid model. The live ship gate is still a manual run.
+
+## ADR-017: The public demo runs on Cloud Run + Vercel; AWS stays the customer path
+**Decision:**
+- The live demo at `member.ameyparmarthi.com` is two pieces:
+  - The API on Cloud Run: `member-service-api`, one instance, in-memory sessions, Claude Haiku 5.5 through OpenRouter.
+  - The console on Vercel: project `member-service-agent`, root directory `web/`. Vercel proxies `/api/*` to Cloud Run.
+- The OpenRouter key is in Secret Manager. A dedicated service account can read only that secret.
+- `docs/DEPLOY.md` keeps the AWS layout for a customer deployment.
+
+**Why:**
+- Same layout as the other live portfolio apps, so one set of accounts, billing and runbooks.
+- The browser makes only same-origin calls. That means no CORS preflight per turn, and nothing for a corporate network that routes `*.run.app` privately to block.
+- In-memory state is enough for a demo, because sessions reset on restart and the console already offers a new session when one expires. With one instance, every request sees the same sessions.
+
+**Spend:** caps are off by default and set only on the service:
+- 40 turns per conversation
+- 2,000 turns per UTC day
+- 500 new conversations per day
+
+At $0.056 per 1,000 turns (ADR-015), the daily cap is about $0.11. Counters reset on restart, so the OpenRouter key's credit limit is the real ceiling. Approvals don't call the model and aren't capped.
+
+**Trade-offs:**
+- The visitor plays the specialist on the approval card, with no staff login. That's acceptable only because every member is synthetic. A real deployment puts the approval endpoint behind staff SSO (ADR-014).
+- Turning on Postgres (`DATABASE_URL`) would let sessions survive restarts and allow more than one instance. The code already supports it.

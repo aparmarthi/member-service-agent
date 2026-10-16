@@ -1,6 +1,8 @@
-# pbm-member-agent
+# Member Service Agent
 
-A LangGraph **pharmacy benefit manager (PBM) member-service agent** — order status, refills, drug pricing, and safety-critical escalation — designed independently on synthetic data. It takes the managed-agent pattern and builds it on an open stack to demonstrate end-to-end agent architecture, channel-aware design, and evaluation.
+A LangGraph **member-service agent for a pharmacy benefit manager (PBM)** — order status, refills, drug pricing, and safety-critical escalation — designed independently on synthetic data. It takes the managed-agent pattern and builds it on an open stack to demonstrate end-to-end agent architecture, channel-aware design, and evaluation.
+
+**Live demo: [member.ameyparmarthi.com](https://member.ameyparmarthi.com).** Pick a synthetic member and chat. On the refund scenarios you also play the specialist who approves in plain text. The API runs Claude Haiku 5.5 with daily turn caps (ADR-017).
 
 > **Clean-room / no PHI.** All member data is synthetic (`src/data/synthetic.py`). Reason codes and member-facing copy are illustrative configuration, not member data. No real data is committed; the data directory is gitignored defensively.
 

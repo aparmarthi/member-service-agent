@@ -1,6 +1,6 @@
 """Synthetic member/order data generator.
 
-Reproduces the *structure* of the PBM order payload (member → patients → orders
+Reproduces the *structure* of a pharmacy-benefits order payload (member → patients → orders
 → prescriptions) with entirely fabricated values. No real member data is used or
 required. Scenario builders cover the edge cases the agent must handle (multi-patient
 family, payment holds, mixed statuses, no-orders, refill-eligible,

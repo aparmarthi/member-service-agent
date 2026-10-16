@@ -1,4 +1,4 @@
-# CLAUDE.md: pbm-member-agent
+# CLAUDE.md: member-service-agent
 
 This repo follows the FDE default stack. It overrides the global "Streamlit for UI" rule here.
 
@@ -11,7 +11,7 @@ This repo follows the FDE default stack. It overrides the global "Streamlit for 
 | Files | S3 | Only when there are file inputs. |
 | AI | Claude through OpenRouter (Haiku 5.5 default, ADR-015); the Anthropic Python SDK path is wired but unmeasured | Structured outputs for anything the code parses. The mock provider stays the default for tests. |
 | Data processing | SQL first, then pandas or Polars | |
-| Deployment | Docker, AWS (ECR, ECS Fargate, RDS, Secrets Manager) | docs/DEPLOY.md |
+| Deployment | Docker, AWS (ECR, ECS Fargate, RDS, Secrets Manager) for customer deploys | docs/DEPLOY.md. The public demo runs on Cloud Run + Vercel (ADR-017). |
 | Testing and delivery | pytest, GitHub Actions | CI runs pytest against a Postgres service and builds and smoke-tests the image. |
 | Redis, queues, workers | Not yet | Add when jobs, caching or load need them. Record an ADR. |
 

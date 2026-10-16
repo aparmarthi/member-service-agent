@@ -1,4 +1,4 @@
-# Bolt prompt: PBM Member Agent console
+# Bolt prompt: Member Service Agent console
 
 > **Status:** the console is built in [`web/`](../web/README.md) to this spec, with two deliberate differences. It has no mock mode (it always talks to the API), and it uses hand-written Tailwind primitives instead of shadcn/ui. Keep this file as the UX spec. To regenerate the UI with a builder tool, paste everything below the line and attach `docs/openapi.json`.
 

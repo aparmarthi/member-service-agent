@@ -97,3 +97,16 @@ def test_cors_allows_browser_frontend():
     r = client.options("/sessions", headers={"Origin": "http://localhost:3000",
                                              "Access-Control-Request-Method": "POST"})
     assert r.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+
+
+def test_demo_caps_return_429(monkeypatch):
+    from src.serving import app as app_module
+
+    monkeypatch.setattr(app_module, "_SESSION_TURN_CAP", 1)
+    monkeypatch.setattr(app_module, "_DAILY_SESSION_CAP", 1)
+    monkeypatch.setattr(app_module, "_today", {"date": "", "turns": 0, "sessions": 0})
+    sid = client.post("/sessions", json={}).json()["session_id"]
+    assert client.post(f"/sessions/{sid}/messages", json={"text": "where is my order"}).status_code == 200
+    capped = client.post(f"/sessions/{sid}/messages", json={"text": "see more"})
+    assert capped.status_code == 429 and "turn limit" in capped.json()["detail"]
+    assert client.post("/sessions", json={}).status_code == 429

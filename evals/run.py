@@ -29,7 +29,7 @@ def _previous() -> dict | None:
 
 def main() -> None:
     """Run all suites and report."""
-    parser = argparse.ArgumentParser(description="PBM agent eval harness")
+    parser = argparse.ArgumentParser(description="Member Service Agent eval harness")
     parser.add_argument("--no-save", action="store_true")
     parser.add_argument("--gates", choices=("all", "code"), default="all",
                         help="code: enforce only gates that hold on the mock; report "
