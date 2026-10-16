@@ -54,7 +54,7 @@ def test_openrouter_prefers_anthropic_and_enforces_the_schema(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setattr(httpx, "post", fake_post)
     assert _classify("refill my lisinopril", OpenRouterProvider()) == (Intent.REFILL, False)
-    assert sent["model"] == "anthropic/claude-opus-5.5"
+    assert sent["model"] == "anthropic/claude-haiku-5.5"
     assert sent["provider"] == {"order": ["anthropic"], "require_parameters": True}
     assert sent["response_format"]["json_schema"]["schema"] == _ROUTER_SCHEMA
     assert "temperature" not in sent  # Claude 5.5 rejects sampling params

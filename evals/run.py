@@ -36,7 +36,7 @@ def main() -> None:
     report = run_all()
     prev_metrics = previous["metrics"] if previous else {}
 
-    print(f"\nEval run {report['timestamp']}  ·  provider={report['provider']}\n")
+    print(f"\nEval run {report['timestamp']}  ·  provider={report['provider']}  ·  model={report['model'] or '-'}\n")
     print(f"{'metric':40}{'value':>10}{'vs prev':>10}   threshold")
     for name, value in report["metrics"].items():
         delta = f"{value - prev_metrics[name]:+.3f}" if name in prev_metrics else "—"

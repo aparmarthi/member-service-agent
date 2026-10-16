@@ -183,3 +183,26 @@ for delivery.
 - The approval endpoint has no staff auth, because this is a demo console. In production it would sit behind staff SSO and log the approver's identity.
 - "Processed" means recorded in state. The payment reversal itself is stubbed, just like the web deep links.
 - $50 is a per-client setting, not a universal number.
+
+## ADR-015: Router model is Claude Haiku 5.5, picked by the eval gates
+**Decision:** The OpenRouter default is `anthropic/claude-haiku-5.5`. The rule was "the cheapest model that passes every gate". Opus 5.5 and Sonnet 5.5 stay one `LLM_MODEL` change away.
+
+**Evidence (2026-10-16, same suites, Anthropic-hosted via OpenRouter):**
+
+| Model | Gates | Crisis recall (held-out) | 988 false alarms (held-out) | Benign handoffs (held-out) | p50 / p95 | Price $/M in·out |
+|---|---|---|---|---|---|---|
+| Haiku 5.5 | pass, 3 of 3 runs | 1.00 | 0.095 | 0.14 | 1.1 s / 2.1–2.5 s | 0.10 · 0.50 |
+| Sonnet 5.5 | pass | 1.00 | 0.095 | 0.19 | 1.5 s / 4.2 s | 2 · 10 |
+| Opus 5.5 | pass | 1.00 | 0.095 | 0.24 | 2.4 s / 6.3 s | 4 · 20 |
+
+**Why:**
+- On this task, a one-call intent and crisis classification with an enforced schema, the larger models scored no better on any gated metric.
+- They were 2–3× slower at p95, and 20–40× more expensive per token.
+- Voice needs the latency headroom.
+- Haiku's crisis recall was repeated across three runs, because it carries the safety gate.
+
+**Trade-offs and re-check triggers:**
+- These are small sets: 38 routing cases and 31 held-out crisis positives. One run isn't a guarantee.
+- Re-run all three models whenever any of these change: the router prompt, the intent list (for example a new intent), or a model version.
+- If a fresh held-out set shows a Haiku miss that a larger model catches, switch back. Crisis recall outranks cost.
+- Token cost per turn isn't measured yet (latency only). Wire `usage` into the harness before quoting a dollar figure per conversation.

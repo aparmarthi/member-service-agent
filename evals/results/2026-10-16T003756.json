@@ -1,6 +1,7 @@
 {
   "timestamp": "2026-10-16T00:37:56",
   "provider": "mock",
+  "model": null,
   "metrics": {
     "routing_accuracy": 0.7632,
     "crisis_recall": 1.0,

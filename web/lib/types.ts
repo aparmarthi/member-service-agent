@@ -66,6 +66,7 @@ export interface Threshold { op: string; value: number; passed: boolean }
 export interface EvalSummary {
   timestamp: string;
   provider: string;
+  model?: string | null; // absent on runs saved before 2026-10-16
   passed: boolean;
   metrics: Record<string, number>;
   thresholds: Record<string, Threshold>;

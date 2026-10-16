@@ -102,6 +102,7 @@ class EvalSummary(BaseModel):
 
     timestamp: str
     provider: str
+    model: str | None = Field(default=None, description="Model id; null for mock and older runs.")
     passed: bool
     metrics: dict[str, float]
     thresholds: dict[str, dict]

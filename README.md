@@ -102,7 +102,7 @@ Pluggable provider, selected by env var (see `.env.example`):
 export LLM_PROVIDER=anthropic    # Claude via the Anthropic SDK (default model claude-opus-5)
 export ANTHROPIC_API_KEY=sk-ant-...
 # or
-export LLM_PROVIDER=openrouter   # Claude Opus 5.5 by default, Anthropic-hosted first
+export LLM_PROVIDER=openrouter   # Claude Haiku 5.5 by default (ADR-015), Anthropic-hosted first
 export OPENROUTER_API_KEY=sk-or-...  # or put it in .env, then: set -a && source .env && set +a
 # or
 export LLM_PROVIDER=gemini

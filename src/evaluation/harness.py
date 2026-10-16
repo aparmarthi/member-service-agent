@@ -34,6 +34,7 @@ from src.data import synthetic
 from src.graph.build import build_graph
 from src.models.schemas import Channel, Member
 from src.serving.session import AgentSession
+from src.utils.llm import get_provider
 
 DATASETS = Path(__file__).resolve().parents[2] / "evals" / "datasets"
 _STATUS_LINE = re.compile(r"^• (.+?) — (.+?): (.+?)\. ")
@@ -232,7 +233,8 @@ def run_all() -> dict:
     Returns:
         A report dict: metrics, latency percentiles, threshold results, failures.
     """
-    graph = build_graph()
+    provider = get_provider()
+    graph = build_graph(provider)
     latencies: list[float] = []
     metrics: dict[str, float] = {}
     failures: list[dict] = []
@@ -252,6 +254,7 @@ def run_all() -> dict:
     return {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "provider": os.getenv("LLM_PROVIDER", "mock"),
+        "model": getattr(provider, "model", None),  # mock has none
         "metrics": {k: round(v, 4) for k, v in metrics.items()},
         "thresholds": {k: {"op": op, "value": t, "passed": checks[k]}
                        for k, (op, t) in THRESHOLDS.items()},

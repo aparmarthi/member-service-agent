@@ -385,6 +385,18 @@
             "type": "string",
             "title": "Provider"
           },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Model id; null for mock and older runs."
+          },
           "passed": {
             "type": "boolean",
             "title": "Passed"
@@ -434,6 +446,18 @@
           "provider": {
             "type": "string",
             "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Model id; null for mock and older runs."
           },
           "passed": {
             "type": "boolean",

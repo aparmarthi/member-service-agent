@@ -53,6 +53,7 @@ export default function EvalsDashboard() {
         >
           provider: {latest.provider}
         </Badge>
+        {latest.model && <Badge tone="slate">model: {latest.model}</Badge>}
       </div>
 
       <section aria-label="Scorecard" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">

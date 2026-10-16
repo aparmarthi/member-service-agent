@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 # Default Claude model when routing through OpenRouter (per project convention).
-DEFAULT_CLAUDE_MODEL = "anthropic/claude-opus-5.5"
+DEFAULT_CLAUDE_MODEL = "anthropic/claude-haiku-5.5"  # cheapest that passes the gates (ADR-015)
 DEFAULT_ANTHROPIC_MODEL = "claude-opus-5"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
