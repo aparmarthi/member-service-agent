@@ -122,6 +122,13 @@ thoughts?") can trigger 988. The held-out false-alarm rate is 0.095, inside
 the 0.10 bar. Mid-auth turns get the lexicon only (ADR-009). The held-out set
 must never be tuned against; when it has been looked at too often, write a
 new one.
+**Amendment (2026-10-16, after the first live run):**
+- On Claude Opus 5.5 via OpenRouter, held-out recall was 1.00. The run still failed, because `crisis_false_escalation_rate_holdout` was 0.286.
+- Diagnosis: the LLM raised no false crisis flags. 2 of the 6 alarms were the lexicon cases above. The other 4 were frustrated members ("I give up, I've called six times") whom the router hands to a human by design, with no 988 message.
+- The metric was counting every handoff to a human as a crisis false alarm. It is now split:
+  - `crisis_false_alarm_rate` (988 shown on a benign message) stays gated at ≤ 0.10.
+  - `benign_handoff_rate` is reported but not gated.
+- The metric changed after we saw the results, so it's recorded here. The rule against tuning the prompt or the lexicon to the held-out set still holds. Nothing in either was changed.
 
 ## ADR-013: Standard FDE stack: FastAPI + Postgres + Next.js, Docker, AWS
 **Decision:** The stack is Python + FastAPI + Pydantic for the backend,

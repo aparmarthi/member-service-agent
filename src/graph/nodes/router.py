@@ -129,8 +129,9 @@ def route(state: AgentState, provider: LLMProvider) -> AgentState:
     # The LLM is a second crisis detector: it can raise a crisis, never clear one.
     if crisis:
         return {**update, "intent": Intent.ESCALATION, "crisis": True}
-    # "Which medication?" → a bare drug name classifies as off-topic; it isn't.
-    if offer == "drug_name" and intent is Intent.OFF_TOPIC:
+    # "Which medication?" → a bare drug name reads as off-topic or a refill; it
+    # answers the price question the agent just asked.
+    if offer == "drug_name" and intent in (Intent.OFF_TOPIC, Intent.REFILL):
         intent = Intent.DRUG_PRICE
     return {**update, "intent": intent}
 

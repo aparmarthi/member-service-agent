@@ -8,6 +8,7 @@ from src.data import synthetic
 from src.graph.tools import resolve_statuses
 from src.models.schemas import Channel
 from src.serving.session import AgentSession
+from src.utils.llm import MockProvider
 
 
 def test_see_more_pages_through_orders():
@@ -134,3 +135,18 @@ def test_lexicon_ignores_idioms():
     from src.config.crisis import detect_crisis
     assert not detect_crisis("this copay is killing me, I'm dying to get it cheaper")
     assert detect_crisis("I'm better off dead")
+
+
+def test_drug_name_answer_stays_on_price_even_if_classified_as_refill():
+    class RefillRouter(MockProvider):
+        """A live model read a bare "synthroid" as a refill request."""
+
+        def complete(self, system, user, *, json_mode=False, schema=None):
+            if user.strip().lower() == "synthroid":
+                return '{"intent": "refill", "crisis": false}'
+            return super().complete(system, user, json_mode=json_mode, schema=schema)
+
+    s = AgentSession("single_patient_mixed_statuses", provider=RefillRouter())
+    assert "Which medication" in s.send("how much will it cost me").reply
+    turn = s.send("synthroid")
+    assert turn.intent.value == "drug_price" and "Synthroid is covered" in turn.reply
