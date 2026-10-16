@@ -3,7 +3,7 @@
 The refill equivalent of ``reason_codes``. Each condition code maps to an
 eligibility outcome, member-facing copy, and whether the prescription may be
 added to the cart or must transfer to a human. Encodes the remapping and
-priority rules from the refill requirements.
+listing-priority rules as data.
 
 These are drug-eligibility codes and copy — not member data.
 """

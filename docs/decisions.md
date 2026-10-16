@@ -3,12 +3,12 @@
 ## ADR-001: LangGraph over vanilla LangChain AgentExecutor
 **Decision:** Model the agent as a compiled `StateGraph`, not a ReAct
 `AgentExecutor`.
-**Why:** The reference agent is a deterministic state machine with LLM steps
-embedded (topics, guarded transitions, imperative "if X then call action"
-blocks), not an open-ended tool-picking loop. LangGraph's nodes/edges map 1:1 to
+**Why:** A member-service agent in this domain is a deterministic state machine
+with LLM steps embedded (the managed-agent pattern: topics, guarded transitions,
+imperative "if X then call action" blocks), not an open-ended tool-picking loop. LangGraph's nodes/edges map 1:1 to
 topics/transitions and keep control flow in code where it's testable. A ReAct
-loop would relocate that logic into fragile prose — the root cause of several
-production defects.
+loop would relocate that logic into fragile prose, where it is hard to test and
+easy to break.
 
 ## ADR-002: LLM decides intent; code decides truth
 **Decision:** The LLM classifies intent and optionally narrates. Order-status
@@ -20,10 +20,10 @@ construction and makes outputs unit-testable.
 ## ADR-003: Crisis gate ordered before generic routing
 **Decision:** A deterministic crisis gate runs *before* the LLM router and pins
 self-harm intent to escalation; escalation always surfaces 988 + human handoff.
-**Why:** In the reference platform, a built-in content-moderation classifier
-intercepted self-harm input ahead of the customer's escalation topic and emitted
-a canned refusal — a patient-safety failure the customer could not reorder.
-Owning the graph means owning the ordering; we guarantee crisis intent reaches a
+**Why:** A general failure mode: a generic intent router or content-moderation
+classifier that runs first can absorb crisis language into an ordinary intent or
+a canned refusal, so it never reaches the escalation path. On a managed platform
+the builder may not control that ordering. Owning the graph means owning the ordering; we guarantee crisis intent reaches a
 warm handoff. This is the strongest argument for an open stack in this domain.
 
 ## ADR-004: Channel-aware core (same brain, different hands)
@@ -40,9 +40,9 @@ product reasoning without duplicating the agent.
 typed data tables (`src/config/`), not prose in prompts.
 **Why:** These are large, exact, regulated mappings (~30 status codes, ~25
 condition codes with remap + priority rules, tiered auth). As data they are
-unit-testable, diffable, and impossible for the LLM to get wrong. This is the
-same "config-as-data" pattern the reference platform used in custom metadata —
-reproduced here in a form a reviewer can read and test.
+unit-testable, diffable, and impossible for the LLM to get wrong. It is the
+role custom metadata plays on a managed platform, in a form a reviewer can read
+and test.
 
 ## ADR-007: Auth gate as a graph node, before PHI intents
 **Decision:** A deterministic `auth_gate` node runs after routing and enforces
@@ -182,7 +182,7 @@ for delivery.
 **Trade-offs:**
 - The approval endpoint has no staff auth, because this is a demo console. In production it would sit behind staff SSO and log the approver's identity.
 - "Processed" means recorded in state. The payment reversal itself is stubbed, just like the web deep links.
-- $50 is a per-client setting, not a universal number.
+- $50 is a per-plan-sponsor setting, not a universal number.
 
 ## ADR-015: Router model is Claude Haiku 5.5, picked by the eval gates
 **Decision:** The OpenRouter default is `anthropic/claude-haiku-5.5`. The rule was "the cheapest model that passes every gate". Opus 5.5 and Sonnet 5.5 stay one `LLM_MODEL` change away.

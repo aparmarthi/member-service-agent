@@ -3,9 +3,10 @@
 ## Problem
 Members contacting a pharmacy benefit manager want fast, accurate answers about
 their prescription orders — where an order is, why it's delayed, how to resolve a
-hold — across chat and voice. A managed low-code agent shipped this capability
-but concentrated control-flow, safety, and grounding inside an opaque platform.
-This project rebuilds it on an open stack to expose and own those layers.
+hold — across chat and voice. Managed low-code agent platforms can ship this
+capability quickly, but they concentrate control flow, safety, and grounding inside
+an opaque runtime. This project builds it on an open stack to expose and own those
+layers.
 
 ## Users
 - **Members** checking their own order status (primary).
@@ -44,7 +45,7 @@ correctly from grounded system data without unnecessary escalation.
 - Idle-session expiry and a retention window for conversation data.
 - RAG for benefit inquiry.
 
-## Success criteria (acceptance, from source user stories)
+## Success criteria (acceptance)
 - Statuses presented in priority order: self-serve holds → ready → other → delivered.
 - Chat states "last 45 days"; voice states "last 10 days"; voice reads 3 at a time.
 - `PROFILE_HOLD` and API errors transfer to a human.

@@ -20,7 +20,7 @@ from src.config.reason_codes import ParentStatus, lookup
 from src.models.schemas import Member, RefundLine, RefundRequest
 
 # At or below this the member's "yes" processes the refund; above it a
-# specialist approves. Configurable per client; $50 covers most copay errors.
+# specialist approves. Configurable per plan sponsor; $50 covers most copay errors.
 AUTO_APPROVE_LIMIT = 50.00
 
 LOST_OR_DAMAGED = re.compile(

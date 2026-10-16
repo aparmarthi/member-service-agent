@@ -4,8 +4,8 @@ Runs after routing and before PHI intents (order_status, order_action, refill,
 drug_price). If the session hasn't reached Level 1.5, the gate parks the request,
 collects a primary token (member ID or Rx number) and then DOB across turns, and
 replays the original request once verified. A member with a privacy flag is
-transferred after auth. This is the deterministic auth model from the auth
-stories — the LLM never adjudicates identity.
+transferred after auth. The auth model is deterministic — the LLM never
+adjudicates identity.
 """
 
 from __future__ import annotations

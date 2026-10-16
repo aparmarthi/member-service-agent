@@ -1,12 +1,12 @@
 # pbm-member-agent
 
-A LangGraph rebuild of a production-style **pharmacy benefit manager (PBM) member-service agent** — order status, refills, drug pricing, and safety-critical escalation — modeled on the managed-agent pattern and re-implemented on an open stack to demonstrate end-to-end agent architecture, channel-aware design, and evaluation.
+A LangGraph **pharmacy benefit manager (PBM) member-service agent** — order status, refills, drug pricing, and safety-critical escalation — designed independently on synthetic data. It takes the managed-agent pattern and builds it on an open stack to demonstrate end-to-end agent architecture, channel-aware design, and evaluation.
 
 > **Clean-room / no PHI.** All member data is synthetic (`src/data/synthetic.py`). Reason codes and member-facing copy are illustrative configuration, not member data. No real data is committed; the data directory is gitignored defensively.
 
 ## Why this project
 
-The reference design is a managed, low-code agent platform (Agentforce-style). This rebuild un-blurs the three layers a managed platform fuses together, so each is explicit and testable:
+The starting point is the managed, low-code agent pattern (Agentforce-style). This project un-blurs the three layers a managed platform fuses together, so each is explicit and testable:
 
 | Managed concept | Here |
 |---|---|
@@ -37,7 +37,7 @@ One agent brain, channel-appropriate hands. Chat and voice share the graph but d
 
 ## Safety: crisis handling done right
 
-Self-harm/crisis intent is pinned to escalation **deterministically, before** any generic moderation — and the escalation always surfaces the **988 Suicide & Crisis Lifeline** plus a warm human handoff. This is the control a managed platform's built-in moderation layer did not guarantee; owning the graph means owning the ordering. It also holds mid-authentication: a crisis message while a credential prompt is pending still gets 988.
+Self-harm/crisis intent is pinned to escalation **deterministically, before** any generic moderation — and the escalation always surfaces the **988 Suicide & Crisis Lifeline** plus a warm human handoff. A generic router or moderation layer that runs first can absorb crisis language into an ordinary intent or a canned refusal; owning the graph means owning the ordering. It also holds mid-authentication: a crisis message while a credential prompt is pending still gets 988.
 
 Detection uses two independent detectors joined by OR. A C-SSRS-structured lexicon runs before any LLM call (the floor), and the router LLM returns a `crisis` flag (the primary detector for indirect language). The 988 reply follows that flag, so any detector that fires gets 988.
 
@@ -111,7 +111,7 @@ export GOOGLE_API_KEY=...
 
 ## Scenarios (synthetic)
 
-`single_patient_mixed_statuses`, `family_plan`, `no_orders`, `older_orders_only`, `escalation_required`, `payment_hold`, plus the refill scenarios and `refund_small` / `refund_large`. Each mirrors a named scenario from the source requirements. Order dates are relative to today, so lookback windows behave the same on every run.
+`single_patient_mixed_statuses`, `family_plan`, `no_orders`, `older_orders_only`, `escalation_required`, `payment_hold`, plus the refill scenarios and `refund_small` / `refund_large`. Each exercises a distinct edge case. Order dates are relative to today, so lookback windows behave the same on every run.
 
 ## Capabilities (built deep)
 
