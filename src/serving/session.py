@@ -119,6 +119,10 @@ class AgentSession:
         self.turns.append((text, turn))
         return turn
 
+    def state(self) -> dict:
+        """Return this thread's checkpointed state (refund, auth progress, offer)."""
+        return self._graph.get_state({"configurable": {"thread_id": self.thread_id}}).values
+
     def review_refund(self, text: str) -> AgentTurnResult:
         """Apply a specialist's plain-text decision ("approved", "denied - reason").
 
@@ -138,7 +142,7 @@ class AgentSession:
         """
         approved, note = parse_decision(text)
         config = {"configurable": {"thread_id": self.thread_id}}
-        pending = self._graph.get_state(config).values.get("refund")
+        pending = self.state().get("refund")
         if pending is None or pending.status != "pending_approval":
             raise LookupError("No refund on this session is awaiting approval.")
         update = refund_node.review(pending, approved, note)
